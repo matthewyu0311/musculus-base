@@ -24,9 +24,6 @@ __all__ = [
     "case_normalize",
     "DissectDict",
     "dissect_uri",
-    "merge_path",
-    "remove_dot_segments",
-    "transform_reference",
     "recompose",
     "parse_path",
     "starts_with_drive_letter",
@@ -102,6 +99,7 @@ def case_normalize_iter(
     source: Iterable[str],
     /,
     *,
+    casefold: bool = False,
     decode: bool = True,
     enforce_pchars: bool = False,
     allow_slash: bool = True,
@@ -128,18 +126,18 @@ def case_normalize_iter(
                 decoded = None
             if decode and decoded in SET_UNRESERVED:
                 # Decoding unreserved octets is conditional
-                yield decoded
+                yield decoded.casefold() if casefold else decoded
             else:
                 # Uppercasing hex digits is always applied
                 yield "%"
                 yield first.upper()
                 yield second.upper()
         elif allow_slash and c == "/":
-            yield c
+            yield "/"
         elif enforce_pchars and c not in SET_PCHARS:
             raise WellFormednessError(f"Character not in PCHARS: {c!r}")
         else:
-            yield c
+            yield c.casefold() if casefold else c
 
 
 @lru_cache(maxsize=256)
@@ -147,6 +145,7 @@ def case_normalize(
     source: str,
     /,
     *,
+    casefold: bool = False,
     decode: bool = True,
     enforce_pchars: bool = False,
     allow_slash: bool = True,
@@ -168,6 +167,7 @@ def case_normalize(
     return "".join(
         case_normalize_iter(
             source,
+            casefold=casefold,
             decode=decode,
             enforce_pchars=enforce_pchars,
             allow_slash=allow_slash,
@@ -256,7 +256,7 @@ def dissect_uri(uri: str | SplitResult, /) -> DissectDict:
                     is_localhost = host.is_loopback
                 except ValueError:
                     # not IPv4 decimal octets
-                    host = "".join(case_normalize(hostname, decode=True)).casefold()
+                    host = "".join(case_normalize(hostname, casefold=True, decode=True))
                     is_localhost = host == "localhost"
         try:
             port = uri.port
@@ -283,7 +283,7 @@ def dissect_uri(uri: str | SplitResult, /) -> DissectDict:
         path = []
     elif uri.scheme:
         # Non-relative reference
-        path = remove_dot_segments(uri.path.split("/"))
+        path = _remove_dot_segments(uri.path.split("/"))
     else:
         # Relative reference paths cannot undergo remove_dot_segments
         path = uri.path.split("/")
@@ -302,7 +302,7 @@ def dissect_uri(uri: str | SplitResult, /) -> DissectDict:
     }
 
 
-def merge_path(base_path: Sequence[str], reference_path: Sequence[str]) -> list[str]:
+def _merge_path(base_path: Sequence[str], reference_path: Sequence[str]) -> list[str]:
     """Performs the "merge path" operation, taking a base path and a reference path as inputs."""
     # If the base URI has an empty path, or if the reference path starts with "/", use the reference's
     if not base_path or (reference_path and not reference_path[0]):
@@ -312,7 +312,7 @@ def merge_path(base_path: Sequence[str], reference_path: Sequence[str]) -> list[
     return [*list(base_path)[:-1], *reference_path]
 
 
-def remove_dot_segments(segments: Sequence[str], /) -> Sequence[str]:
+def _remove_dot_segments(segments: Sequence[str], /) -> Sequence[str]:
     """Performs the `remove_dot_segments` routine in RFC 3986.
 
     The input and output segments shall be the result of splitting on "/" delimiter:
@@ -355,7 +355,7 @@ def remove_dot_segments(segments: Sequence[str], /) -> Sequence[str]:
     return output_segments
 
 
-def transform_reference(
+def _transform_reference(
     base: SplitResult | DissectDict,
     reference: SplitResult | DissectDict,
     *,
@@ -383,18 +383,18 @@ def transform_reference(
         # Relative reference has no scheme, set it to that of the base
         rd["scheme"] = bds
         # Everything else has been copied, we only have to perform remove_dot_segments
-        rd["path"] = remove_dot_segments(rd["path"])
+        rd["path"] = _remove_dot_segments(rd["path"])
         return rd
 
     # RR has no host, use that of the base
     rdp = rd["path"]
     bdp = bd["path"]
     if rdp:
-        bd["path"] = remove_dot_segments(merge_path(bdp, rdp))
+        bd["path"] = _remove_dot_segments(_merge_path(bdp, rdp))
         bd["query"] = rd["query"]
     else:
         # RR has no path, use that of the base
-        bd["path"] = remove_dot_segments(bdp)
+        bd["path"] = _remove_dot_segments(bdp)
         # RR may still have a query though, which we use
         bd["query"] = rd["query"] or bd["query"]
     # We always use the RR's fragment
