@@ -1,3 +1,5 @@
+__all__ = ["URN_SCHEME", "URNMixin", "URN"]
+
 from typing import Self
 from urllib.parse import SplitResult, quote, unquote, urlsplit
 

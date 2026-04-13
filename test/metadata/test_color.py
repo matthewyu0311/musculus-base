@@ -5,7 +5,6 @@ import pickle
 import random
 import unittest
 from fractions import Fraction
-from math import isnan
 
 
 class TestRGBAColor(unittest.TestCase):

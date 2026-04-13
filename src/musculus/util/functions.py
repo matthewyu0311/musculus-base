@@ -1,14 +1,39 @@
 # SPDX-License-Identifier: MIT
 
+__all__ = [
+    "EMPTY_MAPPING",
+    "EMPTY_ITERATOR",
+    "seq_startswith",
+    "seq_endswith",
+    "throw",
+    "get_all_slots",
+    "get_all_attrs",
+    "slots_tuple",
+    "slots_values",
+    "eq_slots_noshort",
+    "repr_slots",
+    "repr_slots_positional",
+    "compare_with",
+    "make_compare_fns",
+    "compare_slots",
+    "eq_slots",
+    "hash_slots",
+    "runtime_final",
+    "blocked_setattr",
+    "blocked_delattr",
+    "new_with_fields",
+    "immutable",
+    "SlottedImmutableMixin",
+]
+
 import operator
 import sys
-from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Reversible
+from collections.abc import Callable, Iterable, Iterator, Mapping, Reversible
 from itertools import chain
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Never, NoReturn, final, overload
 
 EMPTY_MAPPING: Mapping[Any, Never] = MappingProxyType({})
-_SENTINEL = object()
 
 
 class _EmptyIterator(Iterator[Never]):
@@ -85,8 +110,13 @@ def get_all_attrs(obj) -> Iterable[str]:
 def slots_tuple(obj) -> tuple[Any, ...]:
     return tuple(getattr(obj, k) for k in get_all_slots(obj.__class__) if k[0] != "_")
 
+
 def slots_values(obj, *, include_under: bool = False) -> dict[str, Any]:
-    return {k: getattr(obj, k) for k in get_all_slots(obj.__class__) if include_under or k[0] != "_"}
+    return {
+        k: getattr(obj, k)
+        for k in get_all_slots(obj.__class__)
+        if include_under or k[0] != "_"
+    }
 
 
 def eq_slots_noshort(self, other) -> bool:
@@ -122,7 +152,11 @@ repr_slots.__name__ = repr_slots_positional.__name__ = "__repr__"
 
 
 def compare_with[K, T, T2 = Never](
-    op: Callable[[K, K], bool], key_fn: Callable[[T | T2], K], *, short: bool, transform: Callable[[Any], T | T2] | None = None,
+    op: Callable[[K, K], bool],
+    key_fn: Callable[[T | T2], K],
+    *,
+    short: bool,
+    transform: Callable[[Any], T | T2] | None = None,
 ) -> Callable[[Any, object], bool]:
     """Instances compare equal if they are identical objects,
     or if all of their public slotted attributes compare equal.

@@ -1,3 +1,4 @@
+__all__ = ["MAX_EAN13", "parse_ean13", "EAN13Mixin", "EAN13Code"]
 from abc import ABC
 from collections.abc import Sequence
 from typing import (

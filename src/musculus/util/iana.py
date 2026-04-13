@@ -1,3 +1,5 @@
+__all__ = ["RecordDict", "iter_records"]
+
 # SPDX-License-Identifier: MIT
 """Functions and types for parsing IANA data files."""
 

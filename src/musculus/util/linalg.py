@@ -1,3 +1,72 @@
+__all__ = [
+    "Tuple1",
+    "Tuple3",
+    "Tuple4",
+    "MatrixRow_N",
+    "MatrixRow_1",
+    "MatrixRow_2",
+    "MatrixRow_3",
+    "Matrix_M",
+    "Matrix_Mx1",
+    "Matrix_1xN",
+    "Matrix_2xN",
+    "Matrix_3xN",
+    "Matrix_1x2",
+    "Matrix_1x3",
+    "Matrix_2x1",
+    "Matrix_2x2",
+    "Matrix_2x3",
+    "Matrix_3x1",
+    "Matrix_3x2",
+    "Matrix_3x3",
+    "MutableMatrix",
+    "AnyMatrix",
+    "matrix_size",
+    "matrix_copy",
+    "matrix_from",
+    "matrix_fill",
+    "matrix_values",
+    "matrix_column",
+    "matrix_column_values",
+    "matrix_column_vector",
+    "matrix_row_vector",
+    "MATRIX_IDENTITY_2x2",
+    "MATRIX_IDENTITY_3x3",
+    "matrix_identity",
+    "matrix_transpose",
+    "matrix_aggregate",
+    "matrix_add",
+    "matrix_unary",
+    "matrix_unary_inplace",
+    "matrix_neg",
+    "matrix_binary",
+    "matrix_sub",
+    "matrix_scalar_multiply",
+    "matrix_linear_map_3x3",
+    "matrix_linear_map_3x3_fma",
+    "first_of",
+    "max_of",
+    "matrix_reduced_row_echelon_det",
+    "matrix_augment",
+    "matrix_split",
+    "matrix_inverse_det",
+    "matrix_inverse",
+    "matrix_determinant",
+    "matrix_multiply",
+    "matrix_dot_product",
+    "matrix_cross_product",
+    "vector_op",
+    "vector_add",
+    "vector_scalar_mul",
+    "vector_neg",
+    "vector_sub",
+    "vector_length_sq",
+    "vector_length",
+    "vector_cosine",
+    "vector_dot_product",
+    "vector_cross_product",
+]
+
 import operator
 from collections.abc import Callable, Iterable, MutableSequence, Sequence
 from functools import partial
@@ -486,8 +555,8 @@ def matrix_dot_product(matrix1: Matrix_Mx1, matrix2: Matrix_Mx1) -> FracOrFloat:
 
 
 def matrix_cross_product(matrix1: Matrix_3x1, matrix2: Matrix_3x1) -> Matrix_3x1:
-    ((x1,), (y1,), (z1,)) = matrix1
-    ((x2,), (y2,), (z2,)) = matrix2
+    (x1,), (y1,), (z1,) = matrix1
+    (x2,), (y2,), (z2,) = matrix2
     return ((y1 * z2 - z1 * y2,), (z1 * x2 - x1 * z2,), (x1 * y2 - y1 * x2,))
 
 
@@ -498,8 +567,10 @@ def vector_op(op, *vectors: Iterable[FracOrFloat]):
 def vector_add(*vectors: Iterable[FracOrFloat]):
     return tuple(sum(v) for v in zip(*vectors, strict=True))
 
+
 def vector_scalar_mul(vector: Iterable[FracOrFloat], multiplicand: FracOrFloat):
     return tuple(v * multiplicand for v in vector)
+
 
 vector_neg = partial(vector_op, operator.neg)
 vector_sub = partial(vector_op, operator.sub)

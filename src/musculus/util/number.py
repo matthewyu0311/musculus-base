@@ -1,6 +1,35 @@
+__all__ = [
+    "HALF_PI",
+    "FracOrFloat",
+    "FracOrInt",
+    "frac",
+    "sign",
+    "all_sign",
+    "clamp",
+    "UnsignedRoundingMode",
+    "RoundingMode",
+    "css_round_towards_nearest_integer",
+    "round_up",
+    "frac_float",
+    "frac_int",
+    "int10",
+    "roman",
+    "parse_roman",
+    "to_decimal_places",
+    "adjust_decimal_places",
+    "DEGREE_SIGN",
+    "PRIME",
+    "DOUBLE_PRIME",
+    "SI_PREFIXES",
+    "make_quantity",
+    "scale_quantity",
+    "split_quantity",
+    "parse_quantity",
+    "angle_difference",
+    "parse_css_angle",
+    "parse_percent",
+]
 # SPDX-License-Identifier: MIT
-
-### This module is called "number" to avoid confusion with the built-in "numbers"
 
 from enum import Enum
 from fractions import Fraction
@@ -208,7 +237,7 @@ def frac_float(x: FracOrFloat | Real | str, /) -> FracOrFloat:
             try:
                 # Don't bother parsing this thing ourselves
                 return Fraction(f)
-            except (ValueError, ArithmeticError):
+            except ValueError, ArithmeticError:
                 return float(f)
 
 

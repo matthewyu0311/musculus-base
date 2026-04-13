@@ -67,7 +67,7 @@ license-files = ["LICENSE", "COPYING-RGB", "COPYING-W3C"]
 # Note that this is a list of additional keywords, separated
 # by commas, to be used to assist searching for the distribution in a
 # larger catalog.
-keywords = ["data", "standards", "color", "dcmi"]
+keywords = ["data", "standards", "color"]
 
 # This should be your name or the name of the organization who originally
 # authored the project, and a valid email address corresponding to the name
@@ -125,9 +125,9 @@ dependencies = []
 # Optional dependencies the project provides. These are commonly 
 # referred to as "extras". For a more extensive definition see:
 # https://packaging.python.org/en/latest/specifications/dependency-specifiers/#extras
-# [project.optional-dependencies]
+[project.optional-dependencies]
 # dev = ["check-manifest"]
-# test = ["coverage"]
+test = ["jupyter", "ipywidgets"]
 
 # List URLs that are relevant to your project
 #

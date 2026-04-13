@@ -1,3 +1,77 @@
+__all__ = [
+    "ColorSystem",
+    "conversion_graph",
+    "register_conversion",
+    "convert",
+    "deltaE2000",
+    "deltaEOK",
+    "ps_greyscale",
+    "luminance_bt601",
+    "rgb_to_hsl",
+    "rgb_to_hsv",
+    "rgb_to_hwb",
+    "hsl_to_rgb",
+    "hsv_to_rgb",
+    "hwb_to_rgb",
+    "rgb_to_cmyk_naive",
+    "cmyk_naive_to_rgb",
+    "wavelength_to_rgb",
+    "rgb_to_wavelength",
+    "srgb_transfer_lin",
+    "srgb_transfer_gam",
+    "ILLUMINANTS_XYZ",
+    "LINEAR_TO_XYZ_D65_MATRIX",
+    "OKLAB_TO_LMS_CBRT_MATRIX",
+    "XYZ_D65_TO_LMS_MATRIX",
+    "DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX",
+    "XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX",
+    "A98_LINEAR_TO_XYZ_D65_MATRIX",
+    "XYZ_D65_TO_REC2020_LINEAR_MATRIX",
+    "BRADFORD_MATRIX",
+    "VON_KREIS_MATRIX",
+    "ChromaticAdaptation",
+    "CHROMATIC_ADAPTATION_METHODS",
+    "chromatic_adaptation_matrix",
+    "XYZ_D50_TO_D65_BRADFORD_MATRIX",
+    "chromatic_adaptation",
+    "xyz_d50_to_lab",
+    "lab_to_xyz_d50",
+    "lms_to_lms_cbrt",
+    "lms_cbrt_to_lms",
+    "lab_to_lch",
+    "lch_to_lab",
+    "prophoto_rgb_gam",
+    "prophoto_rgb_lin",
+    "a98_transfer_lin",
+    "a98_transfer_gam",
+    "rec2020_transfer_lin",
+    "rec2020_transfer_gam",
+    "build_linear_matrices",
+    "register_scalar",
+    "COLOR_SYSTEMS_UNLIMITED_GAMUT",
+    "css_gamut_map",
+    "convert_into_gamut",
+    "ComponentSpec",
+    "RGB_SPEC",
+    "XYZ_SPEC",
+    "HSL_SPEC",
+    "HWB_SPEC",
+    "LAB_SPEC",
+    "LCH_SPEC",
+    "COMPONENTS_SPEC",
+    "HSL_EPSILON",
+    "HWB_EPSILON",
+    "LCH_EPSILON",
+    "OKLCH_EPSILON",
+    "POLAR_INTERPOLATION_SYSTEMS",
+    "InterpolationColorSystem",
+    "INTERPOLATION_COLOR_SYSTEMS",
+    "HueInterpolationMethod",
+    "interpolate",
+    "relative_luminance",
+    "wcag_2_1_contrast_ratio",
+]
+
 from collections import deque
 from collections.abc import Callable, Iterable, Sequence
 from enum import Enum, StrEnum
@@ -48,7 +122,7 @@ except ImportError:
     np = None
 
 
-def matrix_precise(
+def _matrix_precise(
     row0: tuple[FracOrFloat | str, FracOrFloat | str, FracOrFloat | str],
     row1: tuple[FracOrFloat | str, FracOrFloat | str, FracOrFloat | str],
     row2: tuple[FracOrFloat | str, FracOrFloat | str, FracOrFloat | str],
@@ -69,56 +143,58 @@ def _output(v):
     return (frac_float(v),)
 
 
-matmap_fast = matrix_linear_map_3x3_fma
-matmap_exact = matrix_linear_map_3x3
-matmul_exact = matrix_multiply
-matinv_exact = matrix_inverse
+_matmap_fast = matrix_linear_map_3x3_fma
+_matmap_exact = matrix_linear_map_3x3
+_matmul_exact = matrix_multiply
+_matinv_exact = matrix_inverse
+
 
 class ColorSystem(StrEnum):
- SRGB = "srgb"
- HSL = "hsl"
- HSV = "hsv"
- HWB = "hwb"
- CMYK = "cmyk"
- WAVELENGTH = "wavelength"
- SRGB_LINEAR = "srgb-linear"
- DISPLAY_P3 = "display-p3"
- DISPLAY_P3_LINEAR = "display-p3-linear"
- XYZ_D65 = "xyz-d65"
- XYZ = "xyz-d65"
- XYZ_D50 = "xyz-d50"
- A98_RGB = "a98-rgb"
- A98_RGB_LINEAR = "a98-rgb-linear"
- PROPHOTO_RGB = "prophoto-rgb"
- PROPHOTO_RGB_LINEAR = "prophoto-rgb-linear"
- REC2020 = "rec2020"
- REC2020_LINEAR = "rec2020-linear"
- LMS = "lms"
- LMS_CBRT = "lms-cbrt"
- LAB = "lab"
- LCH = "lch"
- OKLAB = "oklab"
- OKLCH = "oklch"
+    SRGB = "srgb"
+    HSL = "hsl"
+    HSV = "hsv"
+    HWB = "hwb"
+    CMYK = "cmyk"
+    WAVELENGTH = "wavelength"
+    SRGB_LINEAR = "srgb-linear"
+    DISPLAY_P3 = "display-p3"
+    DISPLAY_P3_LINEAR = "display-p3-linear"
+    XYZ_D65 = "xyz-d65"
+    XYZ = "xyz-d65"
+    XYZ_D50 = "xyz-d50"
+    A98_RGB = "a98-rgb"
+    A98_RGB_LINEAR = "a98-rgb-linear"
+    PROPHOTO_RGB = "prophoto-rgb"
+    PROPHOTO_RGB_LINEAR = "prophoto-rgb-linear"
+    REC2020 = "rec2020"
+    REC2020_LINEAR = "rec2020-linear"
+    LMS = "lms"
+    LMS_CBRT = "lms-cbrt"
+    LAB = "lab"
+    LCH = "lch"
+    OKLAB = "oklab"
+    OKLCH = "oklch"
 
-COLOR_SYSTEM_CONVERSIONS: dict[
+
+_COLOR_SYSTEM_CONVERSIONS: dict[
     ColorSystem, dict[ColorSystem, Callable | Matrix_3x3 | None]
 ] = {}
-FAST_CONVERSIONS: dict[ColorSystem, dict[ColorSystem, Matrix_3x3 | Any]] = {}
+_FAST_CONVERSIONS: dict[ColorSystem, dict[ColorSystem, Matrix_3x3 | Any]] = {}
 
 
 def _get_children(node, fast):
-    children = set(COLOR_SYSTEM_CONVERSIONS[node].keys())
+    children = set(_COLOR_SYSTEM_CONVERSIONS[node].keys())
     if not fast:
         return children
     try:
-        children.update(FAST_CONVERSIONS[node].keys())
+        children.update(_FAST_CONVERSIONS[node].keys())
     except KeyError:
         pass
     return children
 
 
 @lru_cache
-def convert_graph(
+def conversion_graph(
     from_system: ColorSystem, to_system: ColorSystem, *, fast: bool = True
 ) -> Sequence[ColorSystem]:
 
@@ -162,24 +238,24 @@ def register_conversion(
 ):
     if not isinstance(forward, Callable):
         try:
-            inverse = matinv_exact(forward)
+            inverse = _matinv_exact(forward)
         except ValueError, ArithmeticError:
             pass
     try:
-        d = COLOR_SYSTEM_CONVERSIONS[from_system]
+        d = _COLOR_SYSTEM_CONVERSIONS[from_system]
     except KeyError:
         d = {}
-        COLOR_SYSTEM_CONVERSIONS[from_system] = d
+        _COLOR_SYSTEM_CONVERSIONS[from_system] = d
     d[to_system] = forward
     if inverse is not None:
         try:
-            d = COLOR_SYSTEM_CONVERSIONS[to_system]
+            d = _COLOR_SYSTEM_CONVERSIONS[to_system]
         except KeyError:
             d = {}
-            COLOR_SYSTEM_CONVERSIONS[to_system] = d
+            _COLOR_SYSTEM_CONVERSIONS[to_system] = d
         d[from_system] = inverse
     if _clear_cache_on_register:
-        convert_graph.cache_clear()
+        conversion_graph.cache_clear()
 
 
 def _rgb_to_hslsvwb(red, green, blue):
@@ -244,19 +320,19 @@ def _convert_impl(
 ) -> dict:
     if from_system == to_system:
         return {to_system: values}
-    matmap = matmap_fast if fast else matrix_linear_map_3x3
+    matmap = _matmap_fast if fast else matrix_linear_map_3x3
     output = {}
-    path = convert_graph(from_system, to_system, fast=fast)
+    path = conversion_graph(from_system, to_system, fast=fast)
     for s in path:
         to_system = s
         if to_system != from_system:
             if fast:
                 try:
-                    fn = FAST_CONVERSIONS[from_system][to_system]
+                    fn = _FAST_CONVERSIONS[from_system][to_system]
                 except KeyError:
-                    fn = COLOR_SYSTEM_CONVERSIONS[from_system][to_system]
+                    fn = _COLOR_SYSTEM_CONVERSIONS[from_system][to_system]
             else:
-                fn = COLOR_SYSTEM_CONVERSIONS[from_system][to_system]
+                fn = _COLOR_SYSTEM_CONVERSIONS[from_system][to_system]
             if callable(fn):
                 if isinstance(values, Iterable):
                     values = cast(Iterable[FracOrFloat], fn(values))
@@ -683,44 +759,44 @@ ILLUMINANTS_XYZ = {
 }
 
 # The srgb-linear to xyz-d65 conversions is exact
-LINEAR_TO_XYZ_D65_MATRIX = matrix_precise(
+LINEAR_TO_XYZ_D65_MATRIX = _matrix_precise(
     (frac(506752, 1228815), frac(87881, 245763), frac(12673, 70218)),
     (frac(87098, 409605), frac(175762, 245763), frac(12673, 175545)),
     (frac(7918, 409605), frac(87881, 737289), frac(1001167, 1053270)),
 )
 
 # LMS and OKLab From https://bottosson.github.io/posts/oklab/
-OKLAB_TO_LMS_CBRT_MATRIX = matrix_precise(
+OKLAB_TO_LMS_CBRT_MATRIX = _matrix_precise(
     (1, "0.3963377773761749", "0.2158037573099136"),
     (1, "-0.1055613458156586", "-0.0638541728258133"),
     (1, "-0.0894841775298119", "-1.2914855480194092"),
 )
 
-XYZ_D65_TO_LMS_MATRIX = matrix_precise(
+XYZ_D65_TO_LMS_MATRIX = _matrix_precise(
     ("0.8190224379967030", "0.3619062600528904", "-0.1288737815209879"),
     ("0.0329836539323885", "0.9292868615863434", "0.0361446663506424"),
     ("0.0481771893596242", "0.2642395317527308", "0.6335478284694309"),
 )
 
-DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX = matrix_precise(
+DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX = _matrix_precise(
     (frac(608311, 1250200), frac(189793, 714400), frac(198249, 1000160)),
     (frac(35783, 156275), frac(247089, 357200), frac(198249, 2500400)),
     (frac(0, 1), frac(32229, 714400), frac(5220557, 5000800)),
 )
 
-XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX = matrix_precise(
+XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX = _matrix_precise(
     ("1.34578688164715830", "-0.25557208737979464", "-0.05110186497554526"),
     ("-0.54463070512490190", "1.50824774284514680", "0.02052744743642139"),
     (0, 0, "1.21196754563894520"),
 )
 
-A98_LINEAR_TO_XYZ_D65_MATRIX = matrix_precise(
+A98_LINEAR_TO_XYZ_D65_MATRIX = _matrix_precise(
     (frac(573536, 994567), frac(263643, 1420810), frac(187206, 994567)),
     (frac(591459, 1989134), frac(6239551, 9945670), frac(374412, 4972835)),
     (frac(53769, 1989134), frac(351524, 4972835), frac(4929758, 4972835)),
 )
 
-XYZ_D65_TO_REC2020_LINEAR_MATRIX = matrix_precise(
+XYZ_D65_TO_REC2020_LINEAR_MATRIX = _matrix_precise(
     (frac(30757411, 17917100), frac(-6372589, 17917100), frac(-4539589, 17917100)),
     (frac(-19765991, 29648200), frac(47925759, 29648200), frac(467509, 29648200)),
     (frac(792561, 44930125), frac(-1921689, 44930125), frac(42328811, 44930125)),
@@ -729,12 +805,12 @@ XYZ_D65_TO_REC2020_LINEAR_MATRIX = matrix_precise(
 # Chromatic adaptations between XYZ spaces
 # From http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
 
-BRADFORD_MATRIX = matrix_precise(
+BRADFORD_MATRIX = _matrix_precise(
     ("0.8951", "0.2664", "-0.1614"),
     ("-0.7502", "1.7135", "0.0367"),
     ("0.0389", "-0.0685", "1.0296"),
 )
-VON_KREIS_MATRIX = matrix_precise(
+VON_KREIS_MATRIX = _matrix_precise(
     ("0.4002", "0.7076", "-0.08081"),
     ("-0.2263", "1.16532", "0.0457"),
     (0, 0, "0.91822"),
@@ -744,8 +820,8 @@ type ChromaticAdaptation = Literal["xyz_scaling", "bradford", "von_kreis"]
 
 CHROMATIC_ADAPTATION_METHODS = {
     "xyz_scaling": (MATRIX_IDENTITY_3x3, MATRIX_IDENTITY_3x3),
-    "bradford": (BRADFORD_MATRIX, matinv_exact(BRADFORD_MATRIX)),
-    "von_kreis": (VON_KREIS_MATRIX, matinv_exact(VON_KREIS_MATRIX)),
+    "bradford": (BRADFORD_MATRIX, _matinv_exact(BRADFORD_MATRIX)),
+    "von_kreis": (VON_KREIS_MATRIX, _matinv_exact(VON_KREIS_MATRIX)),
 }
 
 
@@ -765,15 +841,15 @@ def chromatic_adaptation_matrix(
 
     # Precision, not performance, is key for this matrix
     ma, ma_inv = CHROMATIC_ADAPTATION_METHODS[method]
-    rho_1, gamma_1, beta_1 = matmap_exact(ma, (Xw1, Yw1, Zw1))
-    rho_2, gamma_2, beta_2 = matmap_exact(ma, (Xw2, Yw2, Zw2))
+    rho_1, gamma_1, beta_1 = _matmap_exact(ma, (Xw1, Yw1, Zw1))
+    rho_2, gamma_2, beta_2 = _matmap_exact(ma, (Xw2, Yw2, Zw2))
     matrix = (
         (frac(rho_2, rho_1), 0, 0),
         (0, frac(gamma_2, gamma_1), 0),
         (0, 0, frac(beta_2, beta_1)),
     )
-    intermediate = matmul_exact(matrix, ma)
-    result = matmul_exact(ma_inv, intermediate, mutable=False)
+    intermediate = _matmul_exact(matrix, ma)
+    result = _matmul_exact(ma_inv, intermediate, mutable=False)
     return cast(Matrix_3x3, result)
 
 
@@ -803,7 +879,7 @@ def chromatic_adaptation(
         )
 
     else:
-        matmap = matmap_fast if fast else matrix_linear_map_3x3
+        matmap = _matmap_fast if fast else matrix_linear_map_3x3
         return _output(matmap(matrix, xyz_values))
 
 
@@ -921,18 +997,18 @@ def build_linear_matrices(
     linear_systems = deque()
     changes = {}
 
-    center_dict = COLOR_SYSTEM_CONVERSIONS[center]
+    center_dict = _COLOR_SYSTEM_CONVERSIONS[center]
 
     def recur(level, node, center_to_node_matrix, node_to_center_matrix):
         visited.add(node)
         linear_systems.append(node)
-        for branch, node_to_branch_matrix in COLOR_SYSTEM_CONVERSIONS[node].items():
+        for branch, node_to_branch_matrix in _COLOR_SYSTEM_CONVERSIONS[node].items():
             if branch in visited:
                 continue
             if not isinstance(node_to_branch_matrix, Iterable):
                 continue
             try:
-                branch_dict = COLOR_SYSTEM_CONVERSIONS[branch]
+                branch_dict = _COLOR_SYSTEM_CONVERSIONS[branch]
                 branch_to_node_matrix = branch_dict[node]
             except KeyError:
                 continue
@@ -947,7 +1023,7 @@ def build_linear_matrices(
                     if not isinstance(center_to_branch_matrix[0][0], FracOrInt):
                         raise TypeError
                 except (KeyError, TypeError) as e:
-                    center_to_branch_matrix = matmul_exact(
+                    center_to_branch_matrix = _matmul_exact(
                         cast(Matrix_3x3, node_to_branch_matrix), center_to_node_matrix
                     )
                     if isinstance(e, KeyError):
@@ -959,7 +1035,7 @@ def build_linear_matrices(
                     if not isinstance(branch_to_center_matrix[0][0], FracOrInt):
                         raise TypeError
                 except (KeyError, TypeError) as e:
-                    branch_to_center_matrix = matmul_exact(
+                    branch_to_center_matrix = _matmul_exact(
                         node_to_center_matrix, cast(Matrix_3x3, branch_to_node_matrix)
                     )
                     if isinstance(e, KeyError):
@@ -973,7 +1049,7 @@ def build_linear_matrices(
 
     recur(0, center, MATRIX_IDENTITY_3x3, MATRIX_IDENTITY_3x3)
     for f, change in changes.items():
-        from_dict = FAST_CONVERSIONS.setdefault(f, {})
+        from_dict = _FAST_CONVERSIONS.setdefault(f, {})
         for t, mat in change.items():
             if np is not None:
                 mat = np.array(mat, dtype=np.double)
@@ -981,7 +1057,7 @@ def build_linear_matrices(
                 mat = cast(Matrix_3x3, matrix_unary(float, mat))
             from_dict[t] = mat
     if _clear_cache_on_register:
-        convert_graph.cache_clear()
+        conversion_graph.cache_clear()
     return list(linear_systems)
 
 
@@ -997,14 +1073,28 @@ def register_scalar(from_system, to_scalar, forward, inverse):
 
 
 # Linear transformations
-register_conversion(ColorSystem.XYZ_D50, ColorSystem.XYZ_D65, XYZ_D50_TO_D65_BRADFORD_MATRIX)
-register_conversion(ColorSystem.SRGB_LINEAR, ColorSystem.XYZ_D65, LINEAR_TO_XYZ_D65_MATRIX)
-register_conversion(ColorSystem.DISPLAY_P3_LINEAR, ColorSystem.XYZ_D65, DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX)
 register_conversion(
-    ColorSystem.XYZ_D50, ColorSystem.PROPHOTO_RGB_LINEAR, XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX
+    ColorSystem.XYZ_D50, ColorSystem.XYZ_D65, XYZ_D50_TO_D65_BRADFORD_MATRIX
 )
-register_conversion(ColorSystem.A98_RGB_LINEAR, ColorSystem.XYZ_D65, A98_LINEAR_TO_XYZ_D65_MATRIX)
-register_conversion(ColorSystem.XYZ_D65, ColorSystem.REC2020_LINEAR, XYZ_D65_TO_REC2020_LINEAR_MATRIX)
+register_conversion(
+    ColorSystem.SRGB_LINEAR, ColorSystem.XYZ_D65, LINEAR_TO_XYZ_D65_MATRIX
+)
+register_conversion(
+    ColorSystem.DISPLAY_P3_LINEAR,
+    ColorSystem.XYZ_D65,
+    DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX,
+)
+register_conversion(
+    ColorSystem.XYZ_D50,
+    ColorSystem.PROPHOTO_RGB_LINEAR,
+    XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX,
+)
+register_conversion(
+    ColorSystem.A98_RGB_LINEAR, ColorSystem.XYZ_D65, A98_LINEAR_TO_XYZ_D65_MATRIX
+)
+register_conversion(
+    ColorSystem.XYZ_D65, ColorSystem.REC2020_LINEAR, XYZ_D65_TO_REC2020_LINEAR_MATRIX
+)
 register_conversion(ColorSystem.OKLAB, ColorSystem.LMS_CBRT, OKLAB_TO_LMS_CBRT_MATRIX)
 register_conversion(ColorSystem.XYZ_D65, ColorSystem.LMS, XYZ_D65_TO_LMS_MATRIX)
 
@@ -1016,22 +1106,41 @@ build_linear_matrices(ColorSystem.SRGB_LINEAR)
 register_conversion(ColorSystem.SRGB, ColorSystem.HSL, rgb_to_hsl, hsl_to_rgb)
 register_conversion(ColorSystem.SRGB, ColorSystem.HSV, rgb_to_hsv, hsv_to_rgb)
 register_conversion(ColorSystem.SRGB, ColorSystem.HWB, rgb_to_hwb, hwb_to_rgb)
-register_conversion(ColorSystem.SRGB, ColorSystem.CMYK, rgb_to_cmyk_naive, cmyk_naive_to_rgb)
-register_conversion(ColorSystem.SRGB_LINEAR, ColorSystem.SRGB, srgb_transfer_gam, srgb_transfer_lin)
 register_conversion(
-    ColorSystem.DISPLAY_P3_LINEAR, ColorSystem.DISPLAY_P3, srgb_transfer_gam, srgb_transfer_lin
+    ColorSystem.SRGB, ColorSystem.CMYK, rgb_to_cmyk_naive, cmyk_naive_to_rgb
 )
 register_conversion(
-    ColorSystem.PROPHOTO_RGB_LINEAR, ColorSystem.PROPHOTO_RGB, prophoto_rgb_gam, prophoto_rgb_lin
+    ColorSystem.SRGB_LINEAR, ColorSystem.SRGB, srgb_transfer_gam, srgb_transfer_lin
 )
 register_conversion(
-    ColorSystem.REC2020_LINEAR, ColorSystem.REC2020, rec2020_transfer_gam, rec2020_transfer_lin
+    ColorSystem.DISPLAY_P3_LINEAR,
+    ColorSystem.DISPLAY_P3,
+    srgb_transfer_gam,
+    srgb_transfer_lin,
 )
-register_conversion(ColorSystem.A98_RGB_LINEAR, ColorSystem.A98_RGB, a98_transfer_gam, a98_transfer_lin)
-register_conversion(ColorSystem.XYZ_D50, ColorSystem.LAB, xyz_d50_to_lab, lab_to_xyz_d50)
+register_conversion(
+    ColorSystem.PROPHOTO_RGB_LINEAR,
+    ColorSystem.PROPHOTO_RGB,
+    prophoto_rgb_gam,
+    prophoto_rgb_lin,
+)
+register_conversion(
+    ColorSystem.REC2020_LINEAR,
+    ColorSystem.REC2020,
+    rec2020_transfer_gam,
+    rec2020_transfer_lin,
+)
+register_conversion(
+    ColorSystem.A98_RGB_LINEAR, ColorSystem.A98_RGB, a98_transfer_gam, a98_transfer_lin
+)
+register_conversion(
+    ColorSystem.XYZ_D50, ColorSystem.LAB, xyz_d50_to_lab, lab_to_xyz_d50
+)
 register_conversion(ColorSystem.LAB, ColorSystem.LCH, lab_to_lch, lch_to_lab)
 register_conversion(ColorSystem.OKLAB, ColorSystem.OKLCH, lab_to_lch, lch_to_lab)
-register_conversion(ColorSystem.LMS, ColorSystem.LMS_CBRT, lms_to_lms_cbrt, lms_cbrt_to_lms)
+register_conversion(
+    ColorSystem.LMS, ColorSystem.LMS_CBRT, lms_to_lms_cbrt, lms_cbrt_to_lms
+)
 
 # Scalars
 register_scalar("srgb", "wavelength", rgb_to_wavelength, wavelength_to_rgb)
@@ -1076,7 +1185,7 @@ def _css_gamut_map_impl(
         return values
     if _in_gamut(values):
         return values
-    graph = convert_graph(origin_system, "xyz-d65", fast=True)
+    graph = conversion_graph(origin_system, "xyz-d65", fast=True)
     if not graph:
         raise ValueError(
             f"Cannot find a path from {origin_system} to OKLCh for gamut mapping."
@@ -1093,14 +1202,20 @@ def _css_gamut_map_impl(
     candidate_values = _convert_impl(origin_system, candidate_system, values)[
         candidate_system
     ]
-    origin_lch = _convert_impl(candidate_system, ColorSystem.OKLCH, candidate_values)["oklch"]
+    origin_lch = _convert_impl(candidate_system, ColorSystem.OKLCH, candidate_values)[
+        "oklch"
+    ]
     l, chroma, hue = origin_lch
     if l >= max_l:
         # White
-        return _convert_impl(ColorSystem.SRGB_LINEAR, origin_system, (1, 1, 1))[origin_system]
+        return _convert_impl(ColorSystem.SRGB_LINEAR, origin_system, (1, 1, 1))[
+            origin_system
+        ]
     elif l <= min_l:
         # Black
-        return _convert_impl(ColorSystem.SRGB_LINEAR, origin_system, (0, 0, 0))[origin_system]
+        return _convert_impl(ColorSystem.SRGB_LINEAR, origin_system, (0, 0, 0))[
+            origin_system
+        ]
 
     clipped_candidate = _clip(candidate_values)
     E = _delta(candidate_system, candidate_values, candidate_system, clipped_candidate)
@@ -1113,7 +1228,9 @@ def _css_gamut_map_impl(
     min_in_gamut = True
     while (maximum - minimum) > epsilon:
         chroma = (minimum + maximum) / 2
-        current_candidate = convert(ColorSystem.OKLCH, candidate_system, (l, chroma, hue))
+        current_candidate = convert(
+            ColorSystem.OKLCH, candidate_system, (l, chroma, hue)
+        )
         if min_in_gamut and _in_gamut(current_candidate):
             minimum = chroma
             continue
@@ -1253,17 +1370,17 @@ OKLCH_EPSILON = 0.000004
 
 POLAR_INTERPOLATION_SYSTEMS = {"lch", "oklch", "hsl", "hwb"}
 InterpolationColorSystem = Literal[
-    ColorSystem.SRGB, 
-    ColorSystem.SRGB_LINEAR, 
-    ColorSystem.DISPLAY_P3_LINEAR, 
-    ColorSystem.XYZ_D65, 
-    ColorSystem.XYZ_D50, 
-    ColorSystem.LAB, 
-    ColorSystem.OKLAB, 
-    ColorSystem.LCH, 
-    ColorSystem.OKLCH, 
-    ColorSystem.HSL, 
-    ColorSystem.HWB, 
+    ColorSystem.SRGB,
+    ColorSystem.SRGB_LINEAR,
+    ColorSystem.DISPLAY_P3_LINEAR,
+    ColorSystem.XYZ_D65,
+    ColorSystem.XYZ_D50,
+    ColorSystem.LAB,
+    ColorSystem.OKLAB,
+    ColorSystem.LCH,
+    ColorSystem.OKLCH,
+    ColorSystem.HSL,
+    ColorSystem.HWB,
 ]
 INTERPOLATION_COLOR_SYSTEMS = tuple(InterpolationColorSystem.__args__)
 
@@ -1320,6 +1437,7 @@ def _is_grey(system: ColorSystem, value) -> bool:
             return (w + b) >= HWB_EPSILON or isnan(h)
         case _:
             return False
+
 
 def _to_grey(system: ColorSystem, value):
     match system:
@@ -1416,7 +1534,7 @@ def interpolate(
             C = proportion1 * C1 + proportion * C2
             h = proportion1 * h1 + proportion * h2
             h %= 360
-            if (missing_hue1 and missing_hue2):
+            if missing_hue1 and missing_hue2:
                 h = nan
             if alpha == 0:
                 return (L, C, h), 0.0
@@ -1444,7 +1562,7 @@ def interpolate(
             s = proportion1 * s1 + proportion * s2
             l = proportion1 * l1 + proportion * l2
             h %= 360
-            if (missing_hue1 and missing_hue2):
+            if missing_hue1 and missing_hue2:
                 h = nan
             if alpha == 0:
                 return (h, s, l), 0.0

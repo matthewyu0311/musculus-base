@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-
+__all__ = ["DOI_PATTERN", "DOI"]
 import re
 from collections.abc import Sequence
 from typing import Final, Self

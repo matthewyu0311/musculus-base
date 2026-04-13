@@ -3,11 +3,16 @@
 
 __all__ = [
     "CSS_ARGUMENT_CHARS",
-    "CheckDigitError",
-    "Parseable",
     "ValidityError",
     "WellFormednessError",
+    "CheckDigitError",
     "ascii_casefold",
+    "remove_ascii_spaces",
+    "Parseable",
+    "Mod10CheckDigits",
+    "Mod11CheckDigits",
+    "mod11_check_digit",
+    "mod10_check_digit",
 ]
 import string
 from abc import ABC, abstractmethod
@@ -55,6 +60,10 @@ def ascii_casefold(s: str, /, upper: bool) -> str:
     return "".join(op(c) if c.isascii() else c for c in s)
 
 
+def remove_ascii_spaces(s: str, /) -> str:
+    return "".join(s.split())
+
+
 class Parseable(ABC):
     """This class is intended for subclasses whose instances have states that can be entirely
     represented as a standardized string.
@@ -63,6 +72,7 @@ class Parseable(ABC):
 
     This class also adds automatic pickle and database support based on this contract.
     """
+
     __slots__ = ()
 
     @classmethod
@@ -155,8 +165,3 @@ def mod10_check_digit(i_no_check_digit: int) -> Mod10CheckDigits:
         s += mod * weight
         weight = 1 if weight == 3 else 3
     return cast(Mod10CheckDigits, string.digits[(10 - s % 10) % 10])
-
-
-def remove_ascii_spaces(s: str, /) -> str:
-    return "".join(s.split())
-

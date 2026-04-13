@@ -1,3 +1,5 @@
+__all__ = ["MIN_ISSN_EAN13", "MAX_ISSN_EAN13", "MAX_ISSN", "JOURNALLAND", "ISSN"]
+
 from collections.abc import Sequence
 from typing import Final, Self
 

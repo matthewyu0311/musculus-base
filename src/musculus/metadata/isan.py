@@ -1,5 +1,12 @@
 # SPDX-License-Identifier: MIT
-
+__all__ = [
+    "MAX_ISAN",
+    "MAX_ISAN_ROOT",
+    "MAX_ISAN_EPISODE_OR_PART",
+    "MAX_ISAN_VERSION",
+    "ISAN",
+    "isan_check_digits",
+]
 from collections.abc import Sequence
 from string import ascii_uppercase, digits
 from typing import Final, Self

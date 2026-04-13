@@ -5,6 +5,33 @@ This is not intended to be a general-purpose URI library; packages such as data-
 and uts46 are much more suitable for general URI processing.
 """
 
+__all__ = [
+    "CHARS_TSPECIALS",
+    "UNRESERVED",
+    "SET_UNRESERVED",
+    "SUB_DELIMS",
+    "SET_SUB_DELIMS",
+    "SET_PCHARS",
+    "PCT_ENCODED",
+    "PCHAR",
+    "CHARS_PCHARS",
+    "R_COMPONENT",
+    "Q_COMPONENT",
+    "F_COMPONENT",
+    "URI_SCHEME_PATTERN",
+    "DEFAULT_PORTS",
+    "case_normalize_iter",
+    "case_normalize",
+    "DissectDict",
+    "dissect_uri",
+    "merge_path",
+    "remove_dot_segments",
+    "transform_reference",
+    "recompose",
+    "parse_path",
+    "starts_with_drive_letter",
+    "remove_trailing_slash",
+]
 
 import re
 from collections import deque
@@ -81,7 +108,8 @@ def case_normalize_iter(
 ) -> Iterable[str]:
     # No default arguments for decode and casefold
     """Iteratively case-normalizes the input.
-    This also serves as the implementation of the non-iterative `case_normalize` function."""
+    This also serves as the implementation of the non-iterative `case_normalize` function.
+    """
     it = iter(source)
     for c in it:
         if c == "%":
