@@ -24,9 +24,7 @@ __all__ = [
     "case_normalize",
     "DissectDict",
     "dissect_uri",
-    "recompose",
-    "parse_path",
-    "starts_with_drive_letter",
+    "recompose_uri",
     "remove_trailing_slash",
 ]
 
@@ -37,8 +35,9 @@ from functools import lru_cache
 from ipaddress import IPv4Address, IPv6Address
 from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from string import ascii_letters, digits, hexdigits
+from tracemalloc import start
 from typing import TypedDict
-from urllib.parse import SplitResult, urlsplit
+from urllib.parse import SplitResult, unquote, urlsplit
 
 from .parse import (
     ValidityError,
@@ -205,8 +204,7 @@ def dissect_uri(uri: str | SplitResult, /) -> DissectDict:
     #    do not always perform normalization prior to comparison (see Section
     #    6).
 
-    # urllib.parse conspicuously lacks a normalization feature.
-
+    # urllib.parse conspicuously lacks a normalization feature
     # scheme is casefolded to lowercase. No escapes are allowed.
     # URIs by definition have a scheme; relative references don't
     if isinstance(uri, str):
@@ -352,7 +350,7 @@ def _remove_dot_segments(segments: Sequence[str], /) -> Sequence[str]:
         i += 1
     if absolute_path:
         output_segments.appendleft("")
-    return output_segments
+    return list(output_segments)
 
 
 def _transform_reference(
@@ -402,8 +400,8 @@ def _transform_reference(
     return bd
 
 
-def recompose(d: DissectDict, /) -> SplitResult:
-    """Recompose a DissectDict back into a URI."""
+def recompose_uri(d: DissectDict, /) -> SplitResult:
+    """Recomposes a DissectDict back into a URI."""
     scheme = d["scheme"] or ""
     hostl: list[str] = []
     host = d["host"]
@@ -427,53 +425,6 @@ def recompose(d: DissectDict, /) -> SplitResult:
     query = d["query"]
     fragment = d["fragment"]
     return SplitResult(scheme, "".join(hostl), path, query, fragment)
-
-
-def parse_path(source: str, /) -> PurePath:
-    """Parses a source string into either a `PureWindowsPath` or `PurePosixPath` using heuristics:
-    - The incoming path is parsed in both Windows and POSIX flavors.
-      If only one flavor is successful, that flavor is returned.
-    - Path that start with ONE forward slash could either be a relative Windows path or absolute POSIX path.
-      If the path also uses backslashes as the path delimiter, it is considered a relative Windows path.
-    - Path that starts with TWO forward slashes is likly a Windows relative path.
-    """
-    canon = source.replace("\\", "/").replace("|", ":", 1)
-    try:
-        windows = PureWindowsPath(canon)
-    except ValueError:
-        windows = None
-    try:
-        posix = PurePosixPath(source)
-    except ValueError:
-        posix = None
-    # "/foo/bar" could either be a relative Windows path or absolute POSIX path
-    # We lean towards Windows if there are backslashes in source
-    if source.startswith("/"):
-        flavor = "windows" if source.startswith("//") else "posix"
-    else:
-        flavor = "windows" if "\\" in source else "posix"
-
-    if flavor == "windows" and windows:
-        path = windows
-    elif flavor == "posix" and posix:
-        path = posix
-    else:
-        p = posix or windows
-        if not p:
-            raise ValueError(
-                f"Source cannot be parsed as either Windows or POSIX path: {source!r}"
-            )
-        path = p
-    return path
-
-
-def starts_with_drive_letter(s: str, /) -> bool:
-    l = len(s)
-    if l < 2:
-        return False
-    if s[0] in ascii_letters and s[1] in ":|":
-        return l == 2 or s[2] in "/\\"
-    return False
 
 
 def remove_trailing_slash(path: Sequence[str], /) -> Sequence[str]:

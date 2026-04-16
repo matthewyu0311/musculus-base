@@ -1,17 +1,15 @@
 # SPDX-License-Identifier: MIT
 
 import unittest
-from pathlib import PurePosixPath, PureWindowsPath
+from ipaddress import IPv4Address, IPv6Address
 from urllib.parse import urlsplit
-
-from musculus.util.uri import _remove_dot_segments
 
 
 class TestURI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        global case_normalize, _remove_dot_segments
-        from musculus.util.uri import _remove_dot_segments, case_normalize
+        global case_normalize, recompose_uri, dissect_uri
+        from musculus.util.uri import case_normalize, dissect_uri, recompose_uri
 
     def test_case_normalize(self):
         # RFC 3986 2.3;
@@ -20,9 +18,7 @@ class TestURI(unittest.TestCase):
         #    underscore (%5F), or tilde (%7E) should not be created by URI
         #    producers and, when found in a URI, should be decoded to their
         #    corresponding unreserved characters by URI normalizers.
-        cases = {
-            "ABC%5c%7e": "abc%5C~",
-        }
+        self.assertEqual(case_normalize("ABC%5c%7e", casefold=True), "abc%5C~")
         self.assertEqual(
             case_normalize("HTTP://www.EXAMPLE.com/", casefold=False),
             "HTTP://www.EXAMPLE.com/",
@@ -39,51 +35,154 @@ class TestURI(unittest.TestCase):
         with self.assertRaises(ValueError):
             case_normalize("a/b", enforce_pchars=True, allow_slash=False)
 
-    # def test_local_file_uri(self):
-    #     cases = {
-    #         # RFC 3986 Appendix B
-    #         # POSIX paths:
-    #         # ("file:///path/to/file"): empty authority, path = "/path/to/file"
-    #         # A traditional file URI for a local file with an empty authority.
-    #         "file:///path/to/file": PurePosixPath("/path/to/file"),
-    #         # ("file:/path/to/file"): no authority, path = "/path/to/file"
-    #         # The minimal representation of a local file with no authority field
-    #         #   and an absolute path that begins with a slash "/".
-    #         "file:/path/to/file": PurePosixPath("/path/to/file"),
-    #         # Windows paths:
-    #         # ("file:c:/path/to/file"): no authority, path = "c:/path/to/file"
-    #         # The minimal representation of a local file in a DOS- or Windows-
-    #         #   based environment with no authority field and an absolute path
-    #         #   that begins with a drive letter.
-    #         "file:c:/path/to/file": PureWindowsPath("C:/path/to/file"),
-    #         "file:///c|/path/to/file": PureWindowsPath("C:/path/to/file"),
-    #         "file:/c|/path/to/file": PureWindowsPath("C:/path/to/file"),
-    #         "file:c|/path/to/file": PureWindowsPath("C:/path/to/file"),
-    #     }
-    #     for source, expected in cases.items():
-    #         result = parse_file_uri(source)
-    #         self.assertEqual(result, expected)
-
-    # def test_nonlocal_file_uri(self):
-    #     cases = {
-    #         "file://host.example.com/path/to/file": urlsplit(
-    #             R"file://host.example.com/path/to/file"
-    #         ),
-    #         # The "traditional" representation of a non-local file with an empty
-    #         #   authority and a complete (transformed) UNC string in the path.
-    #         "file:////host.example.com/path/to/file": PureWindowsPath(
-    #             R"//host.example.com/path/to/file"
-    #         ),
-    #         # As above, with an extra slash between the empty authority and the
-    #         #   transformed UNC string.
-    #         "file://///host.example.com/path/to/file": PureWindowsPath(
-    #             R"//host.example.com/path/to/file"
-    #         ),
-    #         # Legacy RFC 1738 example
-    #         "file://vms.host.edu/disk$user/my/notes/note12345.txt": urlsplit(
-    #             "file://vms.host.edu/disk$user/my/notes/note12345.txt"
-    #         ),
-    #     }
-    #     for source, expected in cases.items():
-    #         result = parse_file_uri(source)
-    #         self.assertEqual(result, expected)
+    def test_dissect(self):
+        cases = {
+            "http://example.com": {
+                "scheme": "http",
+                "username": None,
+                "password": None,
+                "host": "example.com",
+                "is_localhost": False,
+                "port": None,
+                "path": [],
+                "query": "",
+                "fragment": "",
+            },
+            "http://localhost/": {
+                "scheme": "http",
+                "username": None,
+                "password": None,
+                "host": "localhost",
+                "is_localhost": True,
+                "port": None,
+                "path": ["", ""],
+                "query": "",
+                "fragment": "",
+            },
+            "file:///etc/hosts": {
+                "scheme": "file",
+                "username": None,
+                "password": None,
+                "host": None,
+                "is_localhost": None,
+                "port": None,
+                "path": ["", "etc", "hosts"],
+                "query": "",
+                "fragment": "",
+            },
+            "ftp://ftp.is.co.za/rfc/rfc1808.txt": {
+                "scheme": "ftp",
+                "username": None,
+                "password": None,
+                "host": "ftp.is.co.za",
+                "is_localhost": False,
+                "port": None,
+                "path": ["", "rfc", "rfc1808.txt"],
+                "query": "",
+                "fragment": "",
+            },
+            "http://www.ietf.org/rfc/rfc2396.txt": {
+                "scheme": "http",
+                "username": None,
+                "password": None,
+                "host": "www.ietf.org",
+                "is_localhost": False,
+                "port": None,
+                "path": ["", "rfc", "rfc2396.txt"],
+                "query": "",
+                "fragment": "",
+            },
+            "ldap://[2001:db8::7]/c=GB?objectClass?one": {
+                "scheme": "ldap",
+                "username": None,
+                "password": None,
+                "host": IPv6Address("2001:db8::7"),
+                "is_localhost": False,
+                "port": None,
+                "path": ["", "c=GB"],
+                "query": "objectClass?one",
+                "fragment": "",
+            },
+            "mailto:John.Doe@example.com": {
+                "scheme": "mailto",
+                "username": None,
+                "password": None,
+                "host": None,
+                "is_localhost": None,
+                "port": None,
+                "path": ["John.Doe@example.com"],
+                "query": "",
+                "fragment": "",
+            },
+            "news:comp.infosystems.www.servers.unix": {
+                "scheme": "news",
+                "username": None,
+                "password": None,
+                "host": None,
+                "is_localhost": None,
+                "port": None,
+                "path": ["comp.infosystems.www.servers.unix"],
+                "query": "",
+                "fragment": "",
+            },
+            "tel:+1-816-555-1212": {
+                "scheme": "tel",
+                "username": None,
+                "password": None,
+                "host": None,
+                "is_localhost": None,
+                "port": None,
+                "path": ["+1-816-555-1212"],
+                "query": "",
+                "fragment": "",
+            },
+            "telnet://192.0.2.16:80/": {
+                "scheme": "telnet",
+                "username": None,
+                "password": None,
+                "host": IPv4Address("192.0.2.16"),
+                "is_localhost": False,
+                "port": 80,
+                "path": ["", ""],
+                "query": "",
+                "fragment": "",
+            },
+            "urn:oasis:names:specification:docbook:dtd:xml:4.1.2": {
+                "scheme": "urn",
+                "username": None,
+                "password": None,
+                "host": None,
+                "is_localhost": None,
+                "port": None,
+                "path": ["oasis:names:specification:docbook:dtd:xml:4.1.2"],
+                "query": "",
+                "fragment": "",
+            },
+            "foo://example.com:8042/over/there?name=ferret#nose": {
+                "scheme": "foo",
+                "username": None,
+                "password": None,
+                "host": "example.com",
+                "is_localhost": False,
+                "port": 8042,
+                "path": ["", "over", "there"],
+                "query": "name=ferret",
+                "fragment": "nose",
+            },
+            "urn:example:animal:ferret:nose": {
+                "scheme": "urn",
+                "username": None,
+                "password": None,
+                "host": None,
+                "is_localhost": None,
+                "port": None,
+                "path": ["example:animal:ferret:nose"],
+                "query": "",
+                "fragment": "",
+            },
+        }
+        for uri, expected in cases.items():
+            dissected = dissect_uri(uri)
+            self.assertEqual(dissected, expected)
+            recomposed = recompose_uri(dissected)
+            self.assertEqual(recomposed, urlsplit(uri))
