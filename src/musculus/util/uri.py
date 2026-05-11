@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: MIT
 """This module provides supporting utility for URI processing that are of use to other modules.
 The functionality is based on RFC 3986.
-This is not intended to be a general-purpose URI library; packages such as data-url, urlstd
-and uts46 are much more suitable for general URI processing.
+This is not intended to be a general-purpose URI library.
+Packages such as data-url, urlstd and uts46 are much more suitable for general URI processing.
 """
+
+# We don't put this module in musculus.metadata
+# as we aren't giving URIs their own type (we use SplitResult for that)
 
 __all__ = [
     "CHARS_TSPECIALS",
@@ -33,11 +36,9 @@ from collections import deque
 from collections.abc import Iterable, Sequence
 from functools import lru_cache
 from ipaddress import IPv4Address, IPv6Address
-from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from string import ascii_letters, digits, hexdigits
-from tracemalloc import start
 from typing import TypedDict
-from urllib.parse import SplitResult, unquote, urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 from .parse import (
     ValidityError,

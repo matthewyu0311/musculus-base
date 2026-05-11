@@ -2,7 +2,9 @@
 
 __all__ = [
     "EMPTY_MAPPING",
+    "EMPTY_FROZENSET",
     "EMPTY_ITERATOR",
+    "safe_splat",
     "seq_startswith",
     "seq_endswith",
     "throw",
@@ -26,15 +28,17 @@ __all__ = [
     "SlottedImmutableMixin",
 ]
 
+from keyword import iskeyword
 import operator
 import sys
 from collections.abc import Callable, Iterable, Iterator, Mapping, Reversible
 from itertools import chain
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Never, NoReturn, final, overload
+from typing import TYPE_CHECKING, Any, Never, NoReturn, cast, final, overload
+from unicodedata import is_normalized
 
 EMPTY_MAPPING: Mapping[Any, Never] = MappingProxyType({})
-
+EMPTY_FROZENSET: frozenset[Never] = frozenset({})
 
 class _EmptyIterator(Iterator[Never]):
     __slots__ = ()
@@ -71,6 +75,17 @@ def seq_startswith[T](seq: Iterable[T], prefix: Iterable[T]) -> bool:
 
 def seq_endswith[T](seq: Reversible[T], suffix: Reversible[T]) -> bool:
     return seq_startswith(reversed(seq), reversed(suffix))
+
+def safe_splat(m: Mapping[str, Any] | Iterable[tuple[str, str]]) -> str:
+    if isinstance(m, Mapping):
+        m = cast(Mapping[str, Any], m)
+        d = {k: m[k] for k in m.keys()}
+    else:
+        d = dict(m)
+    if all((v.isidentifier() and not iskeyword(v) and is_normalized("NFKC", v)) for v in d.keys()):
+        return ", ".join(f"{k}={v!r}" for k, v in d.items())
+    else:
+        return f"**{d!r}"
 
 
 def throw(

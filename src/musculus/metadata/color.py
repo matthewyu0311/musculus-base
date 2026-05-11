@@ -539,7 +539,7 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
             the uniqueness of identity of the instances returned.
         """
         if not source.isascii():
-            raise WellFormednessError(f"Not in ASCII: {source!r}")
+            raise WellFormednessError(f"Hexadecimal not in ASCII: {source!r}")
         if bits_per_channel % 4 or bits_per_channel <= 0:
             raise ValueError(f"Bits per channel not multiple of 4: {bits_per_channel}")
         actual_length = len(source)

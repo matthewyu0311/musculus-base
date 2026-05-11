@@ -1,7 +1,7 @@
-__all__ = ["RecordDict", "iter_records"]
-
 # SPDX-License-Identifier: MIT
 """Functions and types for parsing IANA data files."""
+
+__all__ = ["RecordDict", "iter_records"]
 
 from collections.abc import Iterable, Iterator
 from itertools import chain

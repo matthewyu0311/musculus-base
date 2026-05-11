@@ -3,11 +3,11 @@
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from typing import Self, cast
 
 
 class TestUtilFunctions(unittest.TestCase):
-
+    """Only features whose regressions during refactors aren't directly visible are tested here.
+    These features include finality, freezing and thread safety."""
     @classmethod
     def setUpClass(cls):
         global runtime_final, immutable, new_with_fields
@@ -35,7 +35,6 @@ class TestUtilFunctions(unittest.TestCase):
                 return self._value
 
             def __new__(cls, value: int):
-                memo = -value
                 return new_with_fields(cls, _value=value)
 
             def __hash__(self):

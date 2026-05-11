@@ -10,7 +10,7 @@ from typing import (
 from ..util.functions import immutable
 from ..util.parse import (
     CheckDigitError,
-    Mod10CheckDigits,
+    Mod10CheckDigit,
     WellFormednessError,
     mod10_check_digit,
     remove_ascii_spaces,
@@ -47,7 +47,7 @@ class EAN13Mixin(ABC):
         return f"{self.number:012d}"[3:]
 
     @property
-    def ean13_check_digit(self) -> Mod10CheckDigits:
+    def ean13_check_digit(self) -> Mod10CheckDigit:
         return mod10_check_digit(self.number)
 
 

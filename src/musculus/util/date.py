@@ -1,3 +1,5 @@
+"""This module is intended to support the implementation of EDTF."""
+
 __all__ = [
     "Day0Based",
     "Day1Based",
@@ -43,7 +45,6 @@ def format_year(year: int) -> str:
         return f"-{-year:06d}"
 
 
-@lru_cache(maxsize=365 + 366)
 def days_in_month(year: int, month: Month | int) -> Literal[28, 29, 30, 31]:
     match month:
         case 2:
