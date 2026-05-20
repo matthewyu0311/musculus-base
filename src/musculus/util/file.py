@@ -1,4 +1,4 @@
-"""This module contains several functions for working with file- and path-related strings."""
+"""This module contains several functions for operating witht file paths."""
 
 from email.policy import HTTP as HTTP_POLICY
 from email.message import Message
@@ -11,7 +11,6 @@ from typing import ClassVar, Self
 from urllib.parse import SplitResult
 
 from .functions import eq_slots, new_with_fields, safe_splat
-
 from .parse import ASCII_ALNUM, make_wellformed, split_escape
 
 # We're not doing os.path's work here:

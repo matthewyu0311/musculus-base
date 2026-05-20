@@ -26,15 +26,17 @@ __all__ = [
     "new_with_fields",
     "immutable",
     "SlottedImmutableMixin",
+    "LookaheadIterator"
 ]
 
+from collections import deque
 from keyword import iskeyword
 import operator
 import sys
-from collections.abc import Callable, Iterable, Iterator, Mapping, Reversible
+from collections.abc import Callable, Iterable, Iterator, Mapping, Reversible, Sequence
 from itertools import chain
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Never, NoReturn, cast, final, overload
+from typing import TYPE_CHECKING, Any, Never, NoReturn, Self, cast, final, overload
 from unicodedata import is_normalized
 
 EMPTY_MAPPING: Mapping[Any, Never] = MappingProxyType({})
@@ -301,3 +303,44 @@ class SlottedImmutableMixin:
     __slots__ = ()
 
     __lt__, __le__, __eq__, __ge__, __gt__, __hash__ = make_compare_fns(slots_tuple)
+
+class LookaheadIterator[V](Iterator[V]):
+    __slots__ = ("_iterator", "_deque")
+    _iterator: Iterator[V]
+    _deque: deque[V]
+
+    def __init__(self, iterable: Iterable[V], /) -> None:
+        self._iterator = iter(iterable)
+        self._deque = deque()
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> V:
+        if self._deque:
+            return self._deque.popleft()
+        else:
+            # Allow the StopIteration from this `next` to propagate
+            return next(self._iterator)
+
+    def lookahead_unsafe(self, max_count: int, /) -> Iterator[V]:
+        # XXX: It is not safe to have multiple simultaneously active _lookahead generators!
+        for item in self._deque:
+            if not max_count:
+                return
+            yield item
+            max_count -= 1
+        if not max_count:
+            return
+        for item in self._iterator:
+            self._deque.append(item)
+            yield item
+            max_count -= 1
+            if not max_count:
+                return
+    
+    def lookahead(self, max_count: int, /) -> Sequence[V]:
+        # Materialize the lookahead generator into a list 
+        # to avoid the possibility of multiple simultaneously active generators
+        return list(self.lookahead_unsafe(max_count))
+        

@@ -27,7 +27,6 @@ __all__ = [
     "Mod10CheckDigit",
     "Mod11CheckDigit",
     "mod11_check_digit",
-    "mod10_check_digit",
 ]
 import string
 import sys
@@ -83,6 +82,7 @@ class CheckDigitError(ValidityError):
 
     pass
 
+
 def make_wellformed(
     s: str,
     /,
@@ -100,11 +100,11 @@ def make_wellformed(
     length: int | tuple[int, int] | None = None,
     no_whitespaces: bool = False,
     no_multilines: bool = False,
-    is_alpha: bool = False,
-    is_digit: bool = False,
-    is_alnum: bool = False,
-    startswith:  str | Collection[str] | None = None,
-    endswith:  str | Collection[str] | None = None,
+    is_alpha: bool | None = None,
+    is_digit: bool | None = None,
+    is_alnum: bool | None = None,
+    startswith: str | Collection[str] | None = None,
+    endswith: str | Collection[str] | None = None,
     first_chars: Collection[str] | Callable[[str], bool] | None = None,
     continue_chars: Collection[str] | Callable[[str], bool] | None = None,
     intern: bool = False,
@@ -120,6 +120,8 @@ def make_wellformed(
     no action is performed and the input string is returned as-is.
     `name` is the human-readable name in `WellFormednessError` message.
     `length` can be an integer or a tuple of (min, max) inclusive.
+    NOTE: Some combinations of arguments, such as `ascii_only` and `normalize` together, are meaningless.
+    This function does not attempt to reject such combinations.
     """
     # Some of the operations are better represented in regular expressions.
     # Nonetheless, in many cases, using a function can be more maintainable.
@@ -173,12 +175,12 @@ def make_wellformed(
         raise WellFormednessError(f"{name} contains whitespaces: {s!r}")
     if no_multilines and len(s.splitlines()) > 1:
         raise WellFormednessError(f"{name} contains multiple lines: {s!r}")
-    if is_alnum and not s.isalnum():
-        raise WellFormednessError(f"{name} is not alphanumeric: {s!r}")
-    if is_alpha and not s.isalpha():
-        raise WellFormednessError(f"{name} is not alphabetic: {s!r}")
-    if is_digit and not s.isdigit():
-        raise WellFormednessError(f"{name} is not digits: {s!r}")
+    if is_alnum is not None and s.isalnum() != is_alnum:
+        raise WellFormednessError(f"{name} is {"not " if is_alnum else ""}alphanumeric: {s!r}")
+    if is_alpha is not None and s.isalpha() != is_alpha:
+        raise WellFormednessError(f"{name} is {"not " if is_alpha else ""}alphabetic: {s!r}")
+    if is_digit is not None and s.isdigit() != is_digit:
+        raise WellFormednessError(f"{name} is {"not " if is_digit else ""}digits: {s!r}")
     if startswith is None:
         pass
     elif isinstance(startswith, str):
@@ -218,8 +220,6 @@ def make_wellformed(
     return s
 
 
-
-
 def to_code_point(cp: str | int, /) -> CodePoint:
     if isinstance(cp, str):
         return CodePoint(ord(cp))
@@ -246,7 +246,7 @@ def remove_ascii_spaces(s: str, /) -> str:
     return "".join(s.split())
 
 
-def pascal_case(s: str, *, check_identifier: bool = True) -> str:
+def pascal_case(s: str, /) -> str:
     """PascalCase a string such that it is suitable for use as a class name.
     This is designed to process long property names (second column and beyond in PropertyAliases.txt).
     The result loose-matches the input.
@@ -255,16 +255,12 @@ def pascal_case(s: str, *, check_identifier: bool = True) -> str:
     """
     if not s:
         return ""
-    output = "".join(
+    return "".join(
         w[0].upper() + w[1:] for w in s.replace(" ", "").replace("-", "_").split("_")
     )
 
-    if output.isidentifier() or not check_identifier:
-        return output
-    return output + "_"
 
-
-def screaming_snake_case(s: str, check_identifier: bool = True) -> str:
+def screaming_snake_case(s: str, /) -> str:
     """SCREAMING_SNAKE_CASE a string such that it is suitable for use as a name for constants.
     This is designed to process long value aliases (third column and beyond in PropertyValueAliases.txt).
 
@@ -274,11 +270,7 @@ def screaming_snake_case(s: str, check_identifier: bool = True) -> str:
     """
     if not s:
         return ""
-    output = s.strip().upper().replace(" ", "_").replace("-", "_")
-
-    if output.isidentifier() or not check_identifier:
-        return output
-    return output + "_"
+    return s.strip().upper().replace(" ", "_").replace("-", "_")
 
 
 def collate(prop: str, /) -> Collated:
@@ -382,10 +374,12 @@ class LooseMatchStrEnum(StrEnum):
         raise ValueError(value)
 
 
-def loose_match_boolean(v: str) -> bool:
+def loose_match_boolean(v: str, /) -> bool:
     if v in {"", "Y", "Yes", "True", "T"}:
         return True
-    return collate(v) in {"y", "yes", "true", "t"}
+    if v in {"N", "No", "F", "False"}:
+        return False
+    return collate(v) in {"", "y", "yes", "true", "t"}
 
 
 class Parseable(ABC):
@@ -459,7 +453,40 @@ class Parseable(ABC):
         return cls.parse(db_value.decode())
 
 
+def mod10_check_digit(i_no_check_digit: int, /) -> Mod10CheckDigit:
+    """Implements the Luhn algorithm check digit.
+    This is used by things like credit card check digits, but not used by EAN13.
+    https://en.wikipedia.org/wiki/Luhn_algorithm"""
+    div = i_no_check_digit
+    s = 0
+    weight = 2
+    while div > 0:
+        div, mod = divmod(div, 10)
+        d = mod * weight
+        if d > 9:
+            s += d - 9
+        else:
+            s += d
+        weight = 1 if weight == 2 else 2
+    return cast(Mod10CheckDigit, string.digits[(10 - s % 10) % 10])
+
+
+def ean13_check_digit(i_no_check_digit: int, /) -> Mod10CheckDigit:
+    """Implements EAN13 check digit.
+    This is different from the mod10 check digit."""
+    div = i_no_check_digit
+    s = 0
+    weight = 3
+    while div > 0:
+        div, mod = divmod(div, 10)
+        s += mod * weight
+        weight = 1 if weight == 3 else 3
+    return cast(Mod10CheckDigit, string.digits[(10 - s % 10) % 10])
+
+
 def mod11_check_digit(i_no_check_digit: int) -> Mod11CheckDigit:
+    """Implements mod11 check digit.
+    This is used in older ISBN and ISSN versions."""
     div = i_no_check_digit
     s = 0
     weight = 2
@@ -474,17 +501,6 @@ def mod11_check_digit(i_no_check_digit: int) -> Mod11CheckDigit:
         return "X"
     else:
         return cast(Mod10CheckDigit, string.digits[m])
-
-
-def mod10_check_digit(i_no_check_digit: int) -> Mod10CheckDigit:
-    div = i_no_check_digit
-    s = 0
-    weight = 3
-    while div > 0:
-        div, mod = divmod(div, 10)
-        s += mod * weight
-        weight = 1 if weight == 3 else 3
-    return cast(Mod10CheckDigit, string.digits[(10 - s % 10) % 10])
 
 
 def split_escape[P](

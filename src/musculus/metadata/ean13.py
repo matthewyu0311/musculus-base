@@ -5,6 +5,7 @@ from typing import (
     ClassVar,
     Final,
     Self,
+    cast,
 )
 
 from ..util.functions import immutable
@@ -12,8 +13,8 @@ from ..util.parse import (
     CheckDigitError,
     Mod10CheckDigit,
     WellFormednessError,
-    mod10_check_digit,
     remove_ascii_spaces,
+    ean13_check_digit
 )
 from ..util.standard import NumericStandardIdentifier
 
@@ -24,7 +25,7 @@ def parse_ean13(source: str, /) -> int:
     if len(source) != 13:
         raise WellFormednessError(f"EAN13 must contain 13 digits: {source!r}")
     number = int(source[:-1], base=10)
-    cd = mod10_check_digit(number)
+    cd = ean13_check_digit(number)
     if cd != source[-1]:
         raise CheckDigitError(
             f"Invalid EAN13 mod 10 check digit: expected {cd!r}, got {source[-1]!r}"
@@ -48,7 +49,7 @@ class EAN13Mixin(ABC):
 
     @property
     def ean13_check_digit(self) -> Mod10CheckDigit:
-        return mod10_check_digit(self.number)
+        return ean13_check_digit(self.number)
 
 
 @immutable

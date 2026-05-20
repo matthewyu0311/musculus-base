@@ -144,7 +144,8 @@ def format_time_component(t: float) -> str:
 
 
 class Season(IntEnum):
-    """The semantics of seasons (the part of the year to which they correspond) has not been well-defined by specification."""
+    # NOTE: The semantics of seasons (the exact portion of the year to which they correspond) 
+    # has not been well-defined by the specifications.
 
     SPRING = 21
     SUMMER = 22
