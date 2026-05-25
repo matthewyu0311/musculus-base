@@ -38,18 +38,19 @@ from ..util.parse import (
     Parseable,
     ValidityError,
     WellFormednessError,
+    make_wellformed,
     remove_ascii_spaces,
 )
 
 type ChannelOrder = Literal["ARGB", "RGB", "RGBA"]
 
-# Ideally the LRU string cache size should be slightly greater than
-# the number of reused instances (513 to be precise)
-_LRU_STRINGS = 1024
-_LRU_HEX = 1024
+# How many results to cache
+_LRU_STRINGS = 256
+_LRU_PARSE = 256
 
 # The typical case involves 8 bits per channel
 _LRU_BPC = 256
+
 _0_4 = frac(4, 10)
 
 
@@ -80,7 +81,7 @@ def _css_read_rgb(rgb_source: str, /, default: FracOrInt = 0) -> FracOrInt:
         return default
     try:
         return parse_percent(rgb_source, full_scale_100_percent=255) / 255
-    except ValueError | ArithmeticError:
+    except ValueError, ArithmeticError:
         # In parse contexts, raise either WellFormednessError or ValidityError
         raise WellFormednessError(f"Not a valid CSS value: {rgb_source!r}")
 
@@ -97,7 +98,7 @@ def _css_read_percent(
         return parse_percent(
             percent_source, full_scale_100_percent=full_scale_100_percent
         )
-    except ValueError | ArithmeticError:
+    except ValueError, ArithmeticError:
         raise WellFormednessError(f"Not a valid CSS percent: {percent_source!r}")
 
 
@@ -110,7 +111,7 @@ def _css_read_alpha(
         return none_default
     try:
         return parse_percent(alpha_source)
-    except ValueError | ArithmeticError:
+    except ValueError, ArithmeticError:
         raise WellFormednessError(f"Not a valid CSS alpha: {alpha_source!r}")
 
 
@@ -119,7 +120,7 @@ def _css_read_hue(hue_source: str, /, default: FracOrInt = 0) -> FracOrInt:
         return default
     try:
         return parse_css_angle(hue_source)
-    except ValueError | ArithmeticError:
+    except ValueError, ArithmeticError:
         raise WellFormednessError(f"Not a valid CSS angle: {hue_source!r}")
 
 
@@ -557,7 +558,6 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
             channel_order=channel_order,
         )
 
-    @lru_cache(maxsize=_LRU_HEX)
     def to_hex_rrggbb(self) -> str:
         """Return the `#rrggbb` hexadecimal string of the color with prefix "#".
 
@@ -565,15 +565,12 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
         """
         return f"#{self.to_int(bits_per_channel=8, channel_order='RGB'):06x}"
 
-    @lru_cache(maxsize=_LRU_HEX)
     def to_hex_rrggbbaa(self) -> str:
         """Return the `#rrggbbaa` hexadecimal string of the color with prefix "#".
 
         :return: A string such as `#c3aaccee`, always with alpha.
         """
         return f"#{self.to_int(bits_per_channel=8, channel_order='RGBA'):08x}"
-
-    __int__ = __index__ = to_int
 
     def __repr__(self) -> str:
         return f"{self.__class__.__qualname__}(0x{self.to_hex_rrggbbaa()[1:]})"
@@ -1015,6 +1012,7 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
     def parse(cls, source: str, /, allow_none: bool) -> Self | None: ...
 
     @classmethod
+    @lru_cache(maxsize=_LRU_PARSE)
     def parse(cls, source: str, /, allow_none: bool = False) -> Self | None:
         """Parse a color string, in hexadecimal, SVG names, CSS functions and X11 name forms,
         in that order of preference. Accepts all inputs to the :code:`from_css` and :code:`from_x11_name` methods.
@@ -1028,9 +1026,9 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
             the uniqueness of identity of the instances returned.
             `None` may be returned if `allow_none` is true.
         """
-        if not source.isascii():
-            raise WellFormednessError(f"CSS color not in ASCII: {source!r}")
-        s = source.strip().casefold()
+        s = make_wellformed(
+            source, name="Color string", ascii_only=True, strip=True, casefold=True
+        )
         if not s:
             if allow_none:
                 return None

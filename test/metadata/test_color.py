@@ -588,7 +588,6 @@ class TestRGBAColor(unittest.TestCase):
             color = RGBAColor(x)
             color2 = RGBAColor.parse(h)
             self.assertEqual(color2, color)
-            self.assertEqual(int(color), x)
             self.assertEqual(color.to_hex_rrggbbaa(), h.casefold())
 
     def test_fractions(self):
