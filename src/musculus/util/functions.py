@@ -26,13 +26,13 @@ __all__ = [
     "new_with_fields",
     "immutable",
     "SlottedImmutableMixin",
-    "LookaheadIterator"
+    "LookaheadIterator",
 ]
 
-from collections import deque
-from keyword import iskeyword
 import operator
 import sys
+from collections import deque
+from keyword import iskeyword
 from collections.abc import Callable, Iterable, Iterator, Mapping, Reversible, Sequence
 from itertools import chain
 from types import MappingProxyType
@@ -41,6 +41,7 @@ from unicodedata import is_normalized
 
 EMPTY_MAPPING: Mapping[Any, Never] = MappingProxyType({})
 EMPTY_FROZENSET: frozenset[Never] = frozenset({})
+
 
 class _EmptyIterator(Iterator[Never]):
     __slots__ = ()
@@ -53,6 +54,14 @@ class _EmptyIterator(Iterator[Never]):
 
 
 EMPTY_ITERATOR = _EmptyIterator()
+
+type Itemizable[K, V] = Iterable[tuple[K, V]] | Mapping[K, V]
+
+
+def itemize[K, V](m: Itemizable[K, V], /) -> Iterable[tuple[K, V]]:
+    if isinstance(m, Mapping):
+        return m.items()    # type: ignore
+    return m
 
 
 def seq_startswith[T](seq: Iterable[T], prefix: Iterable[T]) -> bool:
@@ -78,13 +87,17 @@ def seq_startswith[T](seq: Iterable[T], prefix: Iterable[T]) -> bool:
 def seq_endswith[T](seq: Reversible[T], suffix: Reversible[T]) -> bool:
     return seq_startswith(reversed(seq), reversed(suffix))
 
+
 def safe_splat(m: Mapping[str, Any] | Iterable[tuple[str, str]]) -> str:
     if isinstance(m, Mapping):
         m = cast(Mapping[str, Any], m)
         d = {k: m[k] for k in m.keys()}
     else:
         d = dict(m)
-    if all((v.isidentifier() and not iskeyword(v) and is_normalized("NFKC", v)) for v in d.keys()):
+    if all(
+        (v.isidentifier() and not iskeyword(v) and is_normalized("NFKC", v))
+        for v in d.keys()
+    ):
         return ", ".join(f"{k}={v!r}" for k, v in d.items())
     else:
         return f"**{d!r}"
@@ -149,7 +162,6 @@ def eq_slots_noshort(self, other) -> bool:
 
 eq_slots_noshort.__name__ = "__eq__"
 
-
 def repr_slots(self) -> str:
     o = [
         f"{k}={getattr(self, k)!r}"
@@ -167,7 +179,6 @@ def repr_slots_positional(self) -> str:
 
 repr_slots.__name__ = repr_slots_positional.__name__ = "__repr__"
 
-
 def compare_with[K, T, T2 = Never](
     op: Callable[[K, K], bool],
     key_fn: Callable[[T | T2], K],
@@ -179,7 +190,7 @@ def compare_with[K, T, T2 = Never](
     or if all of their public slotted attributes compare equal.
     The `is` short-circuit shall be used only if none of the slots holds float `nan`.
 
-    `transform` specifies a transformation function that transforms other into the  class as self.
+    `transform` specifies a transformation function that transforms other into the class as self.
     """
 
     def compare(self: T, other: object, /) -> bool:
@@ -304,6 +315,8 @@ class SlottedImmutableMixin:
 
     __lt__, __le__, __eq__, __ge__, __gt__, __hash__ = make_compare_fns(slots_tuple)
 
+
+
 class LookaheadIterator[V](Iterator[V]):
     __slots__ = ("_iterator", "_deque")
     _iterator: Iterator[V]
@@ -338,9 +351,8 @@ class LookaheadIterator[V](Iterator[V]):
             max_count -= 1
             if not max_count:
                 return
-    
+
     def lookahead(self, max_count: int, /) -> Sequence[V]:
-        # Materialize the lookahead generator into a list 
+        # Materialize the lookahead generator into a list
         # to avoid the possibility of multiple simultaneously active generators
         return list(self.lookahead_unsafe(max_count))
-        

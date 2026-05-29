@@ -149,19 +149,7 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
     * Like all other classes provided, no guarantees are made about the identity of the instances.
       Likewise, do not rely on the weak reference behavior of instances.
     """
-
-    __slots__ = ("rgba",)
-    #: The composite RGBA integer value, between 0 and :code:`MAX_RGBA_VALUE` inclusive.
-    rgba: int
-
-    #: Bits per channel as implemented by this class.
-    BITS_PER_CHANNEL: Final[int] = 8
-
-    #: Maximum channel value as implemented by this class.
-    MAX_CHANNEL_VALUE: Final[int] = 2**BITS_PER_CHANNEL - 1
-
-    #: Maximum RGBA integer value as implemented by this class.
-    MAX_RGBA_VALUE: Final[int] = 2 ** (BITS_PER_CHANNEL * 4) - 1
+    __slots__  = ("rgba",)
 
     #: The four channels are exposed when using positional pattern matching.
     #: Use keyword patterns to match the composite RGBA integer value:
@@ -175,7 +163,20 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
     #:             ...
     #:
     #: :meta public:
-    __match_args__ = ("rgba",)
+    #: The composite RGBA integer value, between 0 and :code:`MAX_RGBA_VALUE` inclusive.
+    __match_args__ = __slots__
+    
+    rgba: int
+
+    #: Bits per channel as implemented by this class.
+    BITS_PER_CHANNEL: Final[int] = 8
+
+    #: Maximum channel value as implemented by this class.
+    MAX_CHANNEL_VALUE: Final[int] = 2**BITS_PER_CHANNEL - 1
+
+    #: Maximum RGBA integer value as implemented by this class.
+    MAX_RGBA_VALUE: Final[int] = 2 ** (BITS_PER_CHANNEL * 4) - 1
+
 
     @overload
     def __new__(cls, rgba: int) -> Self:
