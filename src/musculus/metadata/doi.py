@@ -33,7 +33,7 @@ class DOI(URNMixin, PathResolverURIMixin, StandardIdentifier):
     """
 
     #: Positional pattern matching arguments
-    __slots__ = ("prefix", "suffix")
+    __slots__ = __match_args__ = ("prefix", "suffix")
     prefix: str
     suffix: str
 
@@ -45,8 +45,6 @@ class DOI(URNMixin, PathResolverURIMixin, StandardIdentifier):
         PathResolver.of_prefix("http://doi.org/"),
         PathResolver.of_prefix("http://dx.doi.org/"),
     )
-
-    __match_args__ = ("prefix", "suffix")
 
     def __new__(cls, prefix: str, suffix: str) -> Self:
         # 3.2.1

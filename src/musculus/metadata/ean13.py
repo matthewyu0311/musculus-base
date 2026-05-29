@@ -1,11 +1,9 @@
 __all__ = ["MAX_EAN13", "parse_ean13", "EAN13Mixin", "EAN13Code"]
-from abc import ABC
 from collections.abc import Sequence
 from typing import (
     ClassVar,
     Final,
     Self,
-    cast,
 )
 
 from ..util.functions import immutable
@@ -33,11 +31,12 @@ def parse_ean13(source: str, /) -> int:
     return number
 
 
-class EAN13Mixin(ABC):
+class EAN13Mixin:
     __slots__ = ()
 
     # Just add a number to the implementing class,
     number: int
+    __match_args__ = ("number", "ean13_check_digit")
 
     @property
     def gs1(self) -> str:
@@ -54,6 +53,8 @@ class EAN13Mixin(ABC):
 
 @immutable
 class EAN13Code(EAN13Mixin, NumericStandardIdentifier):
+    __slots__ = ()
+    
     EAN13_RANGES: ClassVar[Sequence[range]] = (range(0, MAX_EAN13 + 1),)
 
     def __new__(cls, number: int, /) -> Self:

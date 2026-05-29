@@ -343,7 +343,7 @@ def geodesic_distance_bearings_degrees(
 
 @immutable
 class GeoPoint(Parseable):
-    __slots__ = ("coord_a", "coord_b", "coord_c", "uncertainty", "crs")
+    __slots__ = __match_args__ = ("coord_a", "coord_b", "coord_c", "uncertainty", "crs")
     #: WGS84 Latitude
     coord_a: float
     #: WGS84 Longitude
@@ -355,8 +355,6 @@ class GeoPoint(Parseable):
 
     # Can be overridden by subclasses
     crs: Projection
-
-    __match_args__ = ("coord_a", "coord_b", "coord_c", "uncertainty", "crs")
 
     def __new__(
         cls,

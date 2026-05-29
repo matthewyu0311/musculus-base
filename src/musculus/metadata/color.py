@@ -149,22 +149,7 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
     * Like all other classes provided, no guarantees are made about the identity of the instances.
       Likewise, do not rely on the weak reference behavior of instances.
     """
-    __slots__  = ("rgba",)
-
-    #: The four channels are exposed when using positional pattern matching.
-    #: Use keyword patterns to match the composite RGBA integer value:
-    #:
-    #:     match value:
-    #:         case RGBAColor(rgba):
-    #:             ...
-    #:         case RGBAColor(rgba=rgba):
-    #:             ...
-    #:         case RGBAColor(red=r, green=g, blue=b, alpha=a):
-    #:             ...
-    #:
-    #: :meta public:
-    #: The composite RGBA integer value, between 0 and :code:`MAX_RGBA_VALUE` inclusive.
-    __match_args__ = __slots__
+    __slots__ = __match_args__ = ("rgba",)
     
     rgba: int
 

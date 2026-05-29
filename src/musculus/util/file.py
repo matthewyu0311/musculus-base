@@ -1,7 +1,9 @@
 """This module contains several functions for operating witht file paths."""
 
+from copy import copy
 from email.policy import HTTP as HTTP_POLICY
 from email.message import Message
+from enum import StrEnum
 import os
 from functools import lru_cache, partial
 from mimetypes import MimeTypes, guess_file_type, guess_type
@@ -10,10 +12,10 @@ from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from typing import ClassVar, Self
 from urllib.parse import SplitResult
 
-from .functions import eq_slots, new_with_fields, safe_splat
-from .parse import ASCII_ALNUM, make_wellformed, split_escape
+from .functions import eq_slots, make_compare_fns, new_with_fields, safe_splat
+from .parse import ASCII_ALNUM, Parseable, make_wellformed, split_escape
 
-# We're not doing os.path's work here:
+# We're not doing os.path's work here!
 # If environment variable expansion is desired, use os.path.expandvars before splitting
 split_windoows_paths: Callable[[str], Iterable[PureWindowsPath]] = partial(
     split_escape,
@@ -59,11 +61,31 @@ restricted_name_chars = ASCII_ALNUM + "!#$&-^_+."
 _CASE_INSENSITIVE_PARAMS = {"charset"}
 
 
-class MediaType:
+class MediaTopLevelType(StrEnum):
+    # Using an enum has the advantage of supporting common parameters
+    APPLICATION = "application"
+    AUDIO = "audio"
+    EXAMPLE = "example"
+    FONT = "font"
+    HAPTICS = "haptics"
+    IMAGE = "image"
+    MESSAGE = "message"
+    MODEL = "model"
+    MULTIPART = "multipart"
+    TEXT = "text"
+    VIDEO = "video"
+
+
+_LRU_PARSE = 256
+
+
+class MediaType(Parseable):
     __slots__ = ("top_level_type", "subtype", "_parameters")
-    top_level_type: str
+    __match_args__ = ("top_level_type", "subtype")
+
+    top_level_type: MediaTopLevelType | str
     subtype: str
-    _parameters: Mapping[str, str]
+    _parameters: dict[str, str]
 
     def __new__(cls, top_level_type: str, subtype: str, /, **params):
         top_level_type = make_wellformed(
@@ -77,6 +99,10 @@ class MediaType:
             continue_chars=restricted_name_chars,
             intern=True,
         )
+        try:
+            top_level_type = MediaTopLevelType(top_level_type)
+        except ValueError:
+            pass
         subtype = make_wellformed(
             subtype,
             "Media subtype",
@@ -117,22 +143,20 @@ class MediaType:
             _parameters={k: p[k] for k in sorted(p.keys())},
         )
 
+    def _compare_key(self) -> tuple:
+        output = [self.top_level_type, self.subtype]
+        for k, v in self._parameters.items():
+            output.append(k)
+            output.append(v)
+        return tuple(output)
+
+    __lt__, __le__, __eq__, __ge__, __gt__, __hash__ = make_compare_fns(_compare_key)
+
     def __repr__(self) -> str:
         s = [f"{self.top_level_type!r}", f"{self.subtype!r}"]
         if self._parameters:
             s.append(safe_splat(self._parameters))
         return f"{self.__class__.__qualname__}({', '.join(s)})"
-
-    __eq__ = eq_slots
-
-    def __hash__(self) -> int:
-        return hash(
-            (
-                self.top_level_type,
-                self.subtype,
-                frozenset(map(tuple, self._parameters.items())),
-            )
-        )
 
     def __str__(self) -> str:
         simple = f"{self.top_level_type}/{self.subtype}"
@@ -144,11 +168,15 @@ class MediaType:
             msg.set_param(k, v)
         return msg["content-type"]
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> str:
         return self._parameters[key]
+    
+    @property
+    def parameters(self) -> Mapping[str, str]:
+        return copy(self._parameters)
 
     @classmethod
-    @lru_cache
+    @lru_cache(_LRU_PARSE)
     def parse(cls, source: str, /) -> Self:
         msg = Message(HTTP_POLICY)
         msg.set_type(source)
@@ -157,19 +185,19 @@ class MediaType:
         params = msg.get_params()
         assert params is not None
         return cls(top_level_type, subtype, **dict(params[1:]))
-    
+
     @classmethod
     def guess_file_type(
-        cls, 
+        cls,
         path: PurePath | str,
         /,
         *,
         db: MimeTypes | None = None,
-        strict: bool = False
+        strict: bool = False,
     ) -> Self:
         """Guesses the media type from the file path. Returns `None` if no such information may be inferred.
         The `MimeTypes` database can be specified for dependency injection. If `None`, uses the default database.
-        See the documentation on `mimetypes` for strict mode. 
+        See the documentation on `mimetypes` for strict mode.
         """
         if db is not None:
             result, _encoding = db.guess_file_type(path, strict=strict)
@@ -181,12 +209,12 @@ class MediaType:
 
     @classmethod
     def guess_uri_type(
-        cls, 
+        cls,
         uri: str | SplitResult,
         /,
         *,
         db: MimeTypes | None = None,
-        strict: bool = False
+        strict: bool = False,
     ) -> Self:
         """Guesses the media type from the URI.
         Returns `None` if no such information may be inferred.
@@ -195,7 +223,9 @@ class MediaType:
         """
         if isinstance(uri, PurePath):
             # guess_type's acceptance of file paths is deprecated
-            raise TypeError("Path objects are not supported. Use guess_file_type instead.")
+            raise TypeError(
+                "Path objects are not supported. Use guess_file_type instead."
+            )
         if isinstance(uri, SplitResult):
             uri = uri.geturl()
         if db is not None:
@@ -205,7 +235,7 @@ class MediaType:
         if result is None:
             return cls.APPLICATION_OCTET_STREAM
         return cls.parse(result)
-    
+
     APPLICATION_OCTET_STREAM: ClassVar[Self]
     TEXT_PLAIN: ClassVar[Self]
     TEXT_PLAIN_US_ASCII: ClassVar[Self]
@@ -219,7 +249,8 @@ class MediaType:
     APPLICATION_ZIP: ClassVar[Self]
     APPLICATION_GZIP: ClassVar[Self]
 
-# Commonly used media types
+
+# Very commonly used media types
 MediaType.APPLICATION_OCTET_STREAM = MediaType.parse("application/octet-stream")
 MediaType.TEXT_PLAIN = MediaType.parse("text/plain")
 MediaType.TEXT_PLAIN_US_ASCII = MediaType.parse('text/plain; charset="us-ascii"')

@@ -51,12 +51,7 @@ class URNMixin(StandardIdentifier):
 
 @immutable
 class URN(URNMixin, StandardIdentifier):
-    __slots__ = ("nid", "nss")
-
-    #: Positional pattern matching arguments
-    #:
-    #: :meta public:
-    __match_args__ = ("nid", "nss")
+    __slots__ = __match_args__ = ("nid", "nss")
 
     #: Returns the normalized assigned name part of the URN.
     #: RFC 8141 Section 3 URN-equivalence case normalization:

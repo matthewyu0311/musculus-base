@@ -281,6 +281,7 @@ def parse_edtf(
 @runtime_final
 class EDTFYear(EDTFDate):
     __slots__ = ("year", "year_qualifier")
+    __match_args__ = ("year",)
 
     year: int
     year_qualifier: Qualifier
@@ -338,6 +339,7 @@ class EDTFYear(EDTFDate):
 @immutable
 class EDTFYearMonth(EDTFDate):
     __slots__ = ("year", "month", "year_qualifier", "month_qualifier")
+    __match_args__ = ("year", "month")
 
     year: int
     month: Month | Season
@@ -512,6 +514,7 @@ class EDTFYearMonthDay(EDTFDate):
         "month_qualifier",
         "day_qualifier",
     )
+    __match_args__ = ("year", "month", "day")
     year: int
     month: Month
     day: Day1Based
@@ -705,6 +708,8 @@ class EDTFDateTime(_EDTFComparable, Parseable):
     hour: int
     minute: int
     second: float
+    __match_args__ = ("year", "month", "day", "hour", "minute", "second")
+
 
     __eq__ = eq_slots_noshort
     __hash__ = hash_slots
@@ -817,6 +822,7 @@ class EDTFOffsetDateTime(Parseable):
         "second",
         "offset_seconds",
     )
+    # No positional pattern matching for you!
 
     year: int
     month: Month

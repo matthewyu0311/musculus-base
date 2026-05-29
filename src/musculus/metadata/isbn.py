@@ -39,7 +39,7 @@ class ISBN(EAN13Mixin, URNMixin, NumericStandardIdentifier):
 
     check_digit = EAN13Mixin.ean13_check_digit
 
-    def __new__(cls, number: int) -> Self:
+    def __new__(cls, number: int, /) -> Self:
         if 0 <= number <= MIN_ISBN:
             n = number + MIN_ISBN
         else:
