@@ -19,21 +19,8 @@ __all__ = [
     "rgb_to_wavelength",
     "srgb_transfer_lin",
     "srgb_transfer_gam",
-    "ILLUMINANTS_XYZ",
-    "LINEAR_TO_XYZ_D65_MATRIX",
-    "OKLAB_TO_LMS_CBRT_MATRIX",
-    "XYZ_D65_TO_LMS_MATRIX",
-    "DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX",
-    "XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX",
-    "A98_LINEAR_TO_XYZ_D65_MATRIX",
-    "XYZ_D65_TO_REC2020_LINEAR_MATRIX",
-    "BRADFORD_MATRIX",
-    "VON_KREIS_MATRIX",
     "ChromaticAdaptation",
-    "CHROMATIC_ADAPTATION_METHODS",
     "chromatic_adaptation_matrix",
-    "XYZ_D50_TO_D65_BRADFORD_MATRIX",
-    "chromatic_adaptation",
     "xyz_d50_to_lab",
     "lab_to_xyz_d50",
     "lms_to_lms_cbrt",
@@ -63,6 +50,7 @@ __all__ = [
     "HWB_EPSILON",
     "LCH_EPSILON",
     "OKLCH_EPSILON",
+    "PolarInterpolationSystem",
     "POLAR_INTERPOLATION_SYSTEMS",
     "InterpolationColorSystem",
     "INTERPOLATION_COLOR_SYSTEMS",
@@ -74,7 +62,7 @@ __all__ = [
 
 from collections import deque
 from collections.abc import Callable, Iterable, Sequence
-from enum import Enum, StrEnum
+from enum import StrEnum
 from functools import lru_cache
 from math import (
     atan2,
@@ -93,7 +81,7 @@ from math import (
 )
 from typing import Any, Literal, cast
 
-from .linalg import (
+from ..linalg import (
     Matrix_3x3,
     MATRIX_IDENTITY_3x3,
     Tuple3,
@@ -107,34 +95,34 @@ from .linalg import (
     vector_scalar_mul,
     vector_sub,
 )
-from .number import (
+from ..number import (
     FracOrFloat,
     FracOrInt,
     clamp,
     frac,
     frac_float,
-    frac_int,
+)
+from .data import (
+    StandardIlluminant,
+    STANDARD_ILLUMINANTS_XYZ,
+    LINEAR_TO_XYZ_D65_MATRIX,
+    OKLAB_TO_LMS_CBRT_MATRIX,
+    XYZ_D65_TO_LMS_MATRIX,
+    DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX,
+    XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX,
+    A98_LINEAR_TO_XYZ_D65_MATRIX,
+    XYZ_D65_TO_REC2020_LINEAR_MATRIX,
+    BRADFORD_MATRIX,
+    VON_KRIES_MATRIX,
 )
 
 try:
+    # XXX It is pointless to use lazy import:
+    # 1. We may need it forr pre-generating the fast matrices 
+    # 2. If we have no numpy installed, we don't repeatedly retry importing it every time
     import numpy as np  # type: ignore
 except ImportError:
     np = None
-
-
-def _matrix_precise(
-    row0: tuple[FracOrFloat | str, FracOrFloat | str, FracOrFloat | str],
-    row1: tuple[FracOrFloat | str, FracOrFloat | str, FracOrFloat | str],
-    row2: tuple[FracOrFloat | str, FracOrFloat | str, FracOrFloat | str],
-) -> Matrix_3x3:
-    return cast(
-        Matrix_3x3,
-        (
-            tuple(map(frac_int, row0)),
-            tuple(map(frac_int, row1)),
-            tuple(map(frac_int, row2)),
-        ),
-    )
 
 
 def _output(v):
@@ -155,7 +143,6 @@ class ColorSystem(StrEnum):
     HSV = "hsv"
     HWB = "hwb"
     CMYK = "cmyk"
-    WAVELENGTH = "wavelength"
     SRGB_LINEAR = "srgb-linear"
     DISPLAY_P3 = "display-p3"
     DISPLAY_P3_LINEAR = "display-p3-linear"
@@ -581,19 +568,15 @@ def cmyk_naive_to_rgb(cmyk: Tuple4) -> Tuple3:
     return red, green, blue
 
 
-def wavelength_to_rgb(wavelength: FracOrFloat, *, gamma: float = 0.8) -> Tuple3:
-    """Convert wavelength to an approximate RGB value.
-    Wavelengths outside 380 to 780 nm will result in blackness.
-    This is a rough approximation:
-    * Within the linear region of increasing wavelength (440 to 700 nm),
+def wavelength_to_rgb(wavelength: FracOrFloat, gamma: float = 0.8) -> Tuple3:
+    """Convert wavelength to very rough approximate sRGB values.
+    Wavelengths outside of 380 to 780 nm will result in blackness.
+    NOTE:
+    - Within the linear region of increasing wavelength (440 to 700 nm),
       the colors have monotonically decreasing hue, saturations = 1, lightness = 0.5, value = 1
-    * No guarantee is made on roundtripping from wavelength to color or vice versa.
-
-    :param wavelength: Wavelength in nanometers.
-    :type wavelength: float
-    :param gamma: Gamma value (positive), defaults to 0.8
-    :type gamma: float | Fraction, optional
-    :return: A 3-tuple of `(red, green, blue)`, all values are floats between zero and one inclusive.
+    - No guarantee can be made; things can look quite "wrong".
+    - If a scientific way of converting color values from and to wavelengths is desired, 
+      the CIE data in the accompanying data module shall be used.
     """
     # Accept and return float because our process is in general inexact (due to gamma)
     if not gamma > 0:
@@ -643,24 +626,16 @@ def wavelength_to_rgb(wavelength: FracOrFloat, *, gamma: float = 0.8) -> Tuple3:
 
 
 def rgb_to_wavelength(values: Tuple3, *, gamma: float = 0.8) -> float:
-    """Convert RGB values to an approximate wavelength value.
-    This is a rough approximation:
-    * For input colors of increasing hue, the wavelength will monotonically decrease
+    """Convert sRGB values to very rough approximate wavelength value.
+    Returns the corresponding wavelength in nanometers, or `nan` if the color has no saturation.
+    NOTE:
+    - For input colors of increasing hue, the wavelength will monotonically decrease
       if the wavelength is within the linear region (440 to 700 nm).
-    * Red colors (640 to 700 nm) and "infra-red" colors (>700 nm) may be mapped to 700 nm.
-    * Non-saturated colors will be mapped to a color of the same hue.
-    * No guarantee is made on roundtripping from wavelength to color or vice versa.
-
-    :param red: Red channel value, between zero and one inclusive.
-    :type red: float | :class:`Fraction`
-    :param green: Green channel value, between zero and one inclusive.
-    :type green: float |  :class:`Fraction`
-    :param blue: Blue channel value, between zero and one inclusive.
-    :type blue: float | :class:`Fraction`
-    :param gamma: Gamma value (positive), defaults to 0.8
-    :type gamma: float | Fraction, optional
-    :return: A rough approximation of the corresponding wavelength in nanometers,
-        or `nan` if the color has no saturation.
+    - Red colors (640 to 700 nm) and "infra-red" colors (>700 nm) may be mapped to 700 nm.
+    - Non-saturated colors will be mapped to a color of the same hue.
+    - No guarantee can be made; things can look quite "wrong".
+    - If a scientific way of converting color values from and to wavelengths is desired, 
+      the CIE data in the accompanying data module shall be used.
     """
     # Accept and return float because our process is in general inexact (due to gamma)
     red, green, blue = values
@@ -741,108 +716,42 @@ def srgb_transfer_gam(values):
     )
 
 
-# http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
-ILLUMINANTS_XYZ = {
-    "D50": (0.3457 / 0.3585, 1.0, (1.0 - 0.3457 - 0.3585) / 0.3585),
-    "D65": (0.3127 / 0.3290, 1.0, (1.0 - 0.3127 - 0.3290) / 0.3290),
-    "A": (1.09850, 1.00000, 0.35585),
-    "B": (0.99072, 1.00000, 0.85223),
-    "C": (0.98074, 1.00000, 1.18232),
-    # "D50":(0.96422, 1.00000, 0.82521),
-    "D55": (0.95682, 1.00000, 0.92149),
-    # "D65":(0.95047, 1.00000, 1.08883),
-    "D75": (0.94972, 1.00000, 1.22638),
-    "E": (1.00000, 1.00000, 1.00000),
-    "F2": (0.99186, 1.00000, 0.67393),
-    "F7": (0.95041, 1.00000, 1.08747),
-    "F11": (1.00962, 1.00000, 0.64350),
-}
+class ChromaticAdaptation(StrEnum):
+    XYZ_SCALING = "XYZ_SCALING"
+    BRADFORD = "BRADFORD"
+    VON_KRIES = "VON_KRIES"
 
-# The srgb-linear to xyz-d65 conversions is exact
-LINEAR_TO_XYZ_D65_MATRIX = _matrix_precise(
-    (frac(506752, 1228815), frac(87881, 245763), frac(12673, 70218)),
-    (frac(87098, 409605), frac(175762, 245763), frac(12673, 175545)),
-    (frac(7918, 409605), frac(87881, 737289), frac(1001167, 1053270)),
-)
 
-# LMS and OKLab From https://bottosson.github.io/posts/oklab/
-OKLAB_TO_LMS_CBRT_MATRIX = _matrix_precise(
-    (1, "0.3963377773761749", "0.2158037573099136"),
-    (1, "-0.1055613458156586", "-0.0638541728258133"),
-    (1, "-0.0894841775298119", "-1.2914855480194092"),
-)
-
-XYZ_D65_TO_LMS_MATRIX = _matrix_precise(
-    ("0.8190224379967030", "0.3619062600528904", "-0.1288737815209879"),
-    ("0.0329836539323885", "0.9292868615863434", "0.0361446663506424"),
-    ("0.0481771893596242", "0.2642395317527308", "0.6335478284694309"),
-)
-
-DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX = _matrix_precise(
-    (frac(608311, 1250200), frac(189793, 714400), frac(198249, 1000160)),
-    (frac(35783, 156275), frac(247089, 357200), frac(198249, 2500400)),
-    (frac(0, 1), frac(32229, 714400), frac(5220557, 5000800)),
-)
-
-XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX = _matrix_precise(
-    ("1.34578688164715830", "-0.25557208737979464", "-0.05110186497554526"),
-    ("-0.54463070512490190", "1.50824774284514680", "0.02052744743642139"),
-    (0, 0, "1.21196754563894520"),
-)
-
-A98_LINEAR_TO_XYZ_D65_MATRIX = _matrix_precise(
-    (frac(573536, 994567), frac(263643, 1420810), frac(187206, 994567)),
-    (frac(591459, 1989134), frac(6239551, 9945670), frac(374412, 4972835)),
-    (frac(53769, 1989134), frac(351524, 4972835), frac(4929758, 4972835)),
-)
-
-XYZ_D65_TO_REC2020_LINEAR_MATRIX = _matrix_precise(
-    (frac(30757411, 17917100), frac(-6372589, 17917100), frac(-4539589, 17917100)),
-    (frac(-19765991, 29648200), frac(47925759, 29648200), frac(467509, 29648200)),
-    (frac(792561, 44930125), frac(-1921689, 44930125), frac(42328811, 44930125)),
-)
-
-# Chromatic adaptations between XYZ spaces
-# From http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
-
-BRADFORD_MATRIX = _matrix_precise(
-    ("0.8951", "0.2664", "-0.1614"),
-    ("-0.7502", "1.7135", "0.0367"),
-    ("0.0389", "-0.0685", "1.0296"),
-)
-VON_KREIS_MATRIX = _matrix_precise(
-    ("0.4002", "0.7076", "-0.08081"),
-    ("-0.2263", "1.16532", "0.0457"),
-    (0, 0, "0.91822"),
-)
-
-type ChromaticAdaptation = Literal["xyz_scaling", "bradford", "von_kreis"]
-
-CHROMATIC_ADAPTATION_METHODS = {
-    "xyz_scaling": (MATRIX_IDENTITY_3x3, MATRIX_IDENTITY_3x3),
-    "bradford": (BRADFORD_MATRIX, _matinv_exact(BRADFORD_MATRIX)),
-    "von_kreis": (VON_KREIS_MATRIX, _matinv_exact(VON_KREIS_MATRIX)),
+_CHROMATIC_ADAPTATION_METHOD_MATRICES = {
+    ChromaticAdaptation.XYZ_SCALING: (MATRIX_IDENTITY_3x3, MATRIX_IDENTITY_3x3),
+    ChromaticAdaptation.BRADFORD: (BRADFORD_MATRIX, _matinv_exact(BRADFORD_MATRIX)),
+    ChromaticAdaptation.VON_KRIES: (VON_KRIES_MATRIX, _matinv_exact(VON_KRIES_MATRIX)),
 }
 
 
 def chromatic_adaptation_matrix(
-    Xw1: FracOrFloat,
-    Yw1: FracOrFloat,
-    Zw1: FracOrFloat,
-    Xw2: FracOrFloat,
-    Yw2: FracOrFloat,
-    Zw2: FracOrFloat,
+    illuminant1: StandardIlluminant | Tuple3,
+    illuminant2: StandardIlluminant | Tuple3,
     *,
-    method: ChromaticAdaptation = "bradford",
+    method: ChromaticAdaptation = ChromaticAdaptation.BRADFORD,
 ) -> Matrix_3x3:
     """This function returns a fraction matrix.
     While it is possible to use the resultant matrix directly,
     it is intended to be multiplied with other matrices."""
 
     # Precision, not performance, is key for this matrix
-    ma, ma_inv = CHROMATIC_ADAPTATION_METHODS[method]
-    rho_1, gamma_1, beta_1 = _matmap_exact(ma, (Xw1, Yw1, Zw1))
-    rho_2, gamma_2, beta_2 = _matmap_exact(ma, (Xw2, Yw2, Zw2))
+    ma, ma_inv = _CHROMATIC_ADAPTATION_METHOD_MATRICES[method]
+    if isinstance(illuminant1, str):
+        XYZ1 = STANDARD_ILLUMINANTS_XYZ[illuminant1]
+    else:
+        XYZ1 = illuminant1
+    if isinstance(illuminant2, str):
+        XYZ2 = STANDARD_ILLUMINANTS_XYZ[illuminant2]
+    else:
+        XYZ2 = illuminant2
+
+    rho_1, gamma_1, beta_1 = _matmap_exact(ma, XYZ1)
+    rho_2, gamma_2, beta_2 = _matmap_exact(ma, XYZ2)
     matrix = (
         (frac(rho_2, rho_1), 0, 0),
         (0, frac(gamma_2, gamma_1), 0),
@@ -853,34 +762,22 @@ def chromatic_adaptation_matrix(
     return cast(Matrix_3x3, result)
 
 
-XYZ_D50_TO_D65_BRADFORD_MATRIX = chromatic_adaptation_matrix(
-    *ILLUMINANTS_XYZ["D50"], *ILLUMINANTS_XYZ["D65"], method="bradford"
-)
-
-
-def chromatic_adaptation(
-    illuminant1: str,
-    illuminant2: str,
-    xyz_values: Tuple3,
-    *,
-    method: ChromaticAdaptation = "bradford",
-    fast: bool = True,
-):
-    matrix: Any
-    if illuminant1 == "D50" and illuminant2 == "D65" and method == "bradford":
-        matrix = XYZ_D50_TO_D65_BRADFORD_MATRIX
-    else:
-        matrix = chromatic_adaptation_matrix(
-            *ILLUMINANTS_XYZ[illuminant1], *ILLUMINANTS_XYZ[illuminant2], method=method
-        )
-    if np is not None and fast:
-        return _output(
-            np.matmul(matrix, cast(Any, xyz_values), dtype=np.double, casting="unsafe")
-        )
-
-    else:
-        matmap = _matmap_fast if fast else matrix_linear_map_3x3
-        return _output(matmap(matrix, xyz_values))
+# def chromatic_adaptation(
+#     illuminant1: StandardIlluminant | Tuple3,
+#     illuminant2: StandardIlluminant | Tuple3,
+#     xyz_values: Tuple3,
+#     *,
+#     method: ChromaticAdaptation = ChromaticAdaptation.BRADFORD,
+#     fast: bool = True,
+# ):
+#     matrix: Any = chromatic_adaptation_matrix(illuminant1, illuminant2, method=method)
+#     if np is not None and fast:
+#         return _output(
+#             np.matmul(matrix, cast(Any, xyz_values), dtype=np.double, casting="unsafe")
+#         )
+#     else:
+#         matmap = _matmap_fast if fast else matrix_linear_map_3x3
+#         return _output(matmap(matrix, xyz_values))
 
 
 # XYZ, Lab
@@ -906,7 +803,7 @@ def _xyz_lab_f_inv(v: FracOrFloat) -> FracOrFloat:
 # The use of XYZ D50 is from https://drafts.csswg.org/css-color-4/#color-conversion-code
 def xyz_d50_to_lab(values: Tuple3) -> Tuple3:
     x, y, z = values
-    Xw_D50, Yw_D50, Zw_D50 = ILLUMINANTS_XYZ["D50"]
+    Xw_D50, Yw_D50, Zw_D50 = STANDARD_ILLUMINANTS_XYZ[StandardIlluminant.D50]
     fx = _xyz_lab_f(x / Xw_D50)
     fy = _xyz_lab_f(y / Yw_D50)
     fz = _xyz_lab_f(z / Zw_D50)
@@ -920,7 +817,7 @@ def xyz_d50_to_lab(values: Tuple3) -> Tuple3:
 
 def lab_to_xyz_d50(values: Tuple3) -> Tuple3:
     L, a, b = values
-    Xw_D50, Yw_D50, Zw_D50 = ILLUMINANTS_XYZ["D50"]
+    Xw_D50, Yw_D50, Zw_D50 = STANDARD_ILLUMINANTS_XYZ[StandardIlluminant.D50]
     fy = (L + 16) / 116
     fx = (a / 500) + fy
     fz = fy - (b / 200)
@@ -1071,10 +968,15 @@ def register_scalar(from_system, to_scalar, forward, inverse):
         scalar_to_system,
     )
 
-
 # Linear transformations
 register_conversion(
-    ColorSystem.XYZ_D50, ColorSystem.XYZ_D65, XYZ_D50_TO_D65_BRADFORD_MATRIX
+    ColorSystem.XYZ_D50,
+    ColorSystem.XYZ_D65,
+    chromatic_adaptation_matrix(
+        StandardIlluminant.D50,
+        StandardIlluminant.D65,
+        method=ChromaticAdaptation.BRADFORD,
+    ),
 )
 register_conversion(
     ColorSystem.SRGB_LINEAR, ColorSystem.XYZ_D65, LINEAR_TO_XYZ_D65_MATRIX
@@ -1142,24 +1044,22 @@ register_conversion(
     ColorSystem.LMS, ColorSystem.LMS_CBRT, lms_to_lms_cbrt, lms_cbrt_to_lms
 )
 
-# Scalars
-register_scalar("srgb", "wavelength", rgb_to_wavelength, wavelength_to_rgb)
 
 _clear_cache_on_register = True
 
 COLOR_SYSTEMS_UNLIMITED_GAMUT = {
-    "xyz-d65",
-    "xyz-d50",
-    "lab",
-    "lch",
-    "oklab",
-    "oklch",
-    "lms",
+    ColorSystem.XYZ_D65,
+    ColorSystem.XYZ_D50,
+    ColorSystem.LAB,
+    ColorSystem.LCH,
+    ColorSystem.OKLAB,
+    ColorSystem.OKLCH,
+    ColorSystem.LMS,
 }
 
 
 def _delta(system1, color1, system2, color2):
-    return deltaEOK(convert(system1, "oklab", color1), convert(system2, "oklab", color2))  # type: ignore
+    return deltaEOK(convert(system1, ColorSystem.OKLAB, color1), convert(system2, ColorSystem.OKLAB, color2))  # type: ignore
 
 
 def _clip(values):
@@ -1178,21 +1078,21 @@ def _css_gamut_map_impl(
     *,
     jnd: FracOrFloat = 0.02,
     epsilon: FracOrFloat = 0.0001,
-    max_l: FracOrFloat = 1,
-    min_l: FracOrFloat = 0,
+    max_l_is_white: bool = True,
+    min_l_is_black: bool = True,
 ) -> Iterable[FracOrFloat]:
     if origin_system in COLOR_SYSTEMS_UNLIMITED_GAMUT:
         return values
     if _in_gamut(values):
         return values
-    graph = conversion_graph(origin_system, "xyz-d65", fast=True)
+    graph = conversion_graph(origin_system, ColorSystem.XYZ_D65, fast=True)
     if not graph:
         raise ValueError(
             f"Cannot find a path from {origin_system} to OKLCh for gamut mapping."
         )
     elif graph[1] == f"{origin_system}-linear":
         candidate_system = graph[1]
-    elif "srgb" in graph:
+    elif ColorSystem.SRGB in graph:
         candidate_system = ColorSystem.SRGB_LINEAR
     else:
         candidate_system = origin_system
@@ -1203,20 +1103,23 @@ def _css_gamut_map_impl(
         candidate_system
     ]
     origin_lch = _convert_impl(candidate_system, ColorSystem.OKLCH, candidate_values)[
-        "oklch"
+        ColorSystem.OKLCH
     ]
     l, chroma, hue = origin_lch
-    if l >= max_l:
+    if l > 1:
         # White
-        return _convert_impl(ColorSystem.SRGB_LINEAR, origin_system, (1, 1, 1))[
-            origin_system
-        ]
-    elif l <= min_l:
+        if max_l_is_white:
+            return _convert_impl(ColorSystem.SRGB_LINEAR, origin_system, (1, 1, 1))[
+                origin_system
+            ]
+        l = 1
+    elif l < 0:
         # Black
-        return _convert_impl(ColorSystem.SRGB_LINEAR, origin_system, (0, 0, 0))[
-            origin_system
-        ]
-
+        if min_l_is_black:
+            return _convert_impl(ColorSystem.SRGB_LINEAR, origin_system, (0, 0, 0))[
+                origin_system
+            ]
+        l = 0
     clipped_candidate = _clip(candidate_values)
     E = _delta(candidate_system, candidate_values, candidate_system, clipped_candidate)
     if E < jnd:
@@ -1258,12 +1161,12 @@ def css_gamut_map(
     *,
     jnd: FracOrFloat = 0.02,
     epsilon: FracOrFloat = 0.0001,
-    max_l: FracOrFloat = 1,
-    min_l: FracOrFloat = 0,
+    max_l_is_white: bool = True,
+    min_l_is_black: bool = True,
 ) -> tuple[FracOrFloat, ...]:
     return _output(
         _css_gamut_map_impl(
-            origin_system, values, jnd=jnd, epsilon=epsilon, max_l=max_l, min_l=min_l
+            origin_system, values, jnd=jnd, epsilon=epsilon, min_l_is_black=min_l_is_black, max_l_is_white=max_l_is_white
         )
     )
 
@@ -1275,13 +1178,13 @@ def convert_into_gamut(
     *,
     jnd: FracOrFloat = 0.02,
     epsilon: FracOrFloat = 0.0001,
-    max_l: FracOrFloat = 1,
-    min_l: FracOrFloat = 0,
+    max_l_is_white: bool = True,
+    min_l_is_black: bool = True,
 ) -> tuple[FracOrFloat, ...]:
     color = _convert_impl(from_system, to_system, values)[to_system]
     return _output(
         _css_gamut_map_impl(
-            to_system, color, jnd=jnd, epsilon=epsilon, max_l=max_l, min_l=min_l
+            to_system, color, jnd=jnd, epsilon=epsilon, min_l_is_black=min_l_is_black, max_l_is_white=max_l_is_white
         )
     )
 
@@ -1298,19 +1201,17 @@ def convert_into_gamut(
 # - undoing premultiplication
 
 
-class ComponentSpec(Enum):
-    REDS = 0
-    GREENS = 1
-    BLUES = 2
-    LIGHTNESS = 3
-    COLORFULNESS = 4
-    HUE = 5
-    OPPONENT_A = 6
-    OPPONENT_B = 7
-
-    # HWB
-    WHITENESS = 8
-    BLACKNESS = 9
+class ComponentSpec(StrEnum):
+    REDS = "REDS"
+    GREENS = "GREENS"
+    BLUES = "BLUES"
+    LIGHTNESS = "LIGHTNESS"
+    COLORFULNESS = "COLORFULNESS"
+    HUE = "HUE"
+    OPPONENT_A = "OPPONENT_A"
+    OPPONENT_B = "OPPONENT_B"
+    WHITENESS = "WHITENESS"
+    BLACKNESS = "BLACKNESS"
 
 
 RGB_SPEC = {
@@ -1368,7 +1269,14 @@ HWB_EPSILON = 99.999
 LCH_EPSILON = 0.0015
 OKLCH_EPSILON = 0.000004
 
-POLAR_INTERPOLATION_SYSTEMS = {"lch", "oklch", "hsl", "hwb"}
+PolarInterpolationSystem = Literal[
+    ColorSystem.LCH,
+    ColorSystem.OKLCH,
+    ColorSystem.HSL,
+    ColorSystem.HSV,
+    ColorSystem.HWB,
+]
+POLAR_INTERPOLATION_SYSTEMS = tuple(PolarInterpolationSystem.__args__)
 InterpolationColorSystem = Literal[
     ColorSystem.SRGB,
     ColorSystem.SRGB_LINEAR,
@@ -1423,16 +1331,16 @@ def _hue_fixup(
 
 def _is_grey(system: ColorSystem, value) -> bool:
     match system:
-        case "lch":
+        case ColorSystem.LCH:
             L, C, h = value
             return C <= LCH_EPSILON or isnan(h)
-        case "oklch":
+        case ColorSystem.OKLCH:
             L, C, h = value
             return C <= OKLCH_EPSILON or isnan(h)
-        case "hsl" | "hsv":
+        case ColorSystem.HSL | ColorSystem.HSV:
             h, s, l = value
             return s <= HSL_EPSILON or isnan(h)
-        case "hwb":
+        case ColorSystem.HWB:
             h, w, b = value
             return (w + b) >= HWB_EPSILON or isnan(h)
         case _:
@@ -1441,25 +1349,25 @@ def _is_grey(system: ColorSystem, value) -> bool:
 
 def _to_grey(system: ColorSystem, value):
     match system:
-        case "lch":
+        case ColorSystem.LCH:
             L, C, h = value
             if C <= LCH_EPSILON:
                 C = 0
                 h = nan
             return L, C, h
-        case "oklch":
+        case ColorSystem.OKLCH:
             L, C, h = value
             if C <= OKLCH_EPSILON:
                 C = 0
                 h = nan
             return L, C, h
-        case "hsl" | "hsv":
+        case ColorSystem.HSL | ColorSystem.HSV:
             h, s, l = value
             if s <= HSL_EPSILON:
                 s = 0
                 h = nan
             return h, s, l
-        case "hwb":
+        case ColorSystem.HWB:
             h, w, b = value
             if (w + b) >= HWB_EPSILON:
                 # w = w / (w + b)
