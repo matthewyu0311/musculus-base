@@ -6,32 +6,11 @@ from bisect import bisect_right
 from collections.abc import Callable, Mapping, Sequence
 from enum import StrEnum
 from itertools import chain, pairwise
-from math import exp, hypot, inf, nan
-from typing import Literal, cast
+from math import exp, nan
+from typing import cast
 
-from ..linalg import (
-    Matrix_3x3,
-    MATRIX_IDENTITY_3x3,
-    Tuple3,
-    Tuple4,
-    matrix_inverse,
-    matrix_linear_map_3x3,
-    matrix_linear_map_3x3_fma,
-    matrix_multiply,
-    matrix_unary,
-    vector_length,
-    vector_scalar_mul,
-    vector_sub,
-)
-
-from ..number import (
-    FracOrFloat,
-    FracOrInt,
-    clamp,
-    frac,
-    frac_float,
-    frac_int,
-)
+from ..linalg import Matrix_3x3
+from ..number import FracOrFloat, frac, frac_int
 
 type WavelengthTable = Mapping[float, tuple[float, ...]]
 type Row3 = tuple[float, float, float]
@@ -1790,7 +1769,7 @@ standard_illuminants_bc_spd = make_linear_interpolator(
 # Specified in 5 nm intervals
 # There is not much point in pre-interpolating them into 1 nm intervals
 # since they require further calculations to be used for SPD
-ILLUMINANT_D_EIGENVECTORS: WavelengthTable3 = {
+STANDARD_ILLUMINANT_D_EIGENVECTORS: WavelengthTable3 = {
     300: (0.04, 0.02, 0.00),
     305: (3.02, 2.26, 1.00),
     310: (6.00, 4.50, 2.00),
@@ -1899,6 +1878,10 @@ ILLUMINANT_D_EIGENVECTORS: WavelengthTable3 = {
     825: (60.40, -9.55, 6.30),
     830: (61.90, -9.80, 6.50),
 }
+
+standard_illuminant_d_eigenvectors = make_linear_interpolator(
+    STANDARD_ILLUMINANT_D_EIGENVECTORS, integer_interval=5
+)
 
 
 def standard_illuminant_d_cct(nominal_cct: float) -> float:
@@ -2453,17 +2436,12 @@ standard_illuminants_d50_d55_d65_d75_spd = make_linear_interpolator(
     STANDARD_ILLUMINANTS_D50_D55_D65_D75_SPD, integer_interval=1
 )
 
-# TODO: SPD function for Standard Illuminant D series
-
-
-def standard_illuminant_d(cct: FracOrFloat) -> tuple[float, Literal[1], float]:
-    """Calculates the XYZ values for the Standard Illuminant D given the correlated color temperature (CCT).
-    Y is always 1 for Standard Illuminant D.
-    CCT must be between 4000K and 25000K.
+def standard_illuminant_d_xy(cct: float) -> tuple[float, float]:
+    """Calculates the xy chromaticity coordiates for the Standard Illuminant D given the correlated color temperature (CCT).
+    CCT must be the actual (not nominal) value between 4000K and 25000K.
     NOTE: For historical reasons, the CCTs of D50, D55, D65 and D75 differ slightly from their nominal value.
     For these illuminants, it is best to use published values; the calculated result obtaied via this function is an approximation.
     """
-    # From https://en.wikipedia.org/wiki/Standard_illuminant#Computation
     if 4000 <= cct <= 7000:
         x = 0.244063 + 99.11 / cct + 2.9678e6 / (cct**2) - 4.6070e9 / (cct**3)
     elif 7000 < cct <= 25000:
@@ -2473,9 +2451,26 @@ def standard_illuminant_d(cct: FracOrFloat) -> tuple[float, Literal[1], float]:
             f"Temperature of Illuminant D must be between 4000K and 25000K: {cct!r}"
         )
     y = -3 * (x**2) + 2.87 * x - 0.275
-    X = x / y
-    Z = (1 - x - y) / y
-    return (X, 1, Z)
+    return x, y
+
+
+def standard_illuminant_d_m1_m2(x: float, y: float) -> tuple[float, float]:
+    """Calculates the M1 and M2 coefficients for the Standard Illuminant D given the xy chromaticity coordinates."""
+    m = 0.0241 + 0.2562 * x - 0.7341 * y
+    m1 = (-1.3515 - 1.7703 * x + 5.9114 * y) / m
+    m2 = (0.03 - 31.4424 * x + 30.0717 * y) / m
+    return m1, m2
+
+
+def standard_illuminant_d_spd_fn(cct: float) -> Callable[[float], float]:
+    x, y = standard_illuminant_d_xy(cct)
+    m1, m2 = standard_illuminant_d_m1_m2(x, y)
+
+    def standard_illuminant_d_spd(wavelength: float) -> float:
+        s0, s1, s2 = standard_illuminant_d_eigenvectors(wavelength)
+        return s0 + s1 * m1 + s2 * m2
+
+    return standard_illuminant_d_spd
 
 
 # CIE (1995) (2004) reflectance spectra
@@ -3038,7 +3033,7 @@ def spectral_locus_intersection(
     y_w: FracOrFloat = 1 / 3,
 ):
     """Find the intersection between Ray: (x_white, y_white) -> (x, y) and the segments comprising the spectral locus.
-    
+
     Returns a 4-tuple consisting of
     - the coordinates R of the intersection,
     - the wavelength, or nan if R is on the purple line,
@@ -3058,7 +3053,9 @@ def spectral_locus_intersection(
         proportion = ((y_w - y) * (x_w - x_p) - (x_w - x) * (y_w - y_p)) / denom
         if not 0 <= proportion <= 1:
             continue
-        excitation_purity = denom / ((x_w - x_p) * (y_p - y_q) - (y_w - y_p) * (x_p - x_q))
+        excitation_purity = denom / (
+            (x_w - x_p) * (y_p - y_q) - (y_w - y_p) * (x_p - x_q)
+        )
         if excitation_purity < 0:
             continue
         if wlp == CIE1931_LONGEST_WAVELENGTH and wlq == CIE1931_SHORTEST_WAVELENGTH:
@@ -3068,4 +3065,6 @@ def spectral_locus_intersection(
         x_r = x_p + proportion * (x_q - x_p)
         y_r = y_p + proportion * (y_q - y_p)
         return (x_r, y_r, wavelength, excitation_purity)
-    raise ValueError("No intersection found, the white point is possibly not inside the spectral locus")
+    raise ValueError(
+        "No intersection found, the white point is possibly not inside the spectral locus"
+    )
