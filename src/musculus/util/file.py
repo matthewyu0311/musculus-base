@@ -76,7 +76,7 @@ class MediaTopLevelType(StrEnum):
     VIDEO = "video"
 
 
-_LRU_PARSE = 256
+_LRU_PARSE = 128
 
 
 class MediaType(Parseable):

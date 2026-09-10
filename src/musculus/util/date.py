@@ -29,11 +29,13 @@ from enum import IntEnum
 from functools import lru_cache
 from typing import Literal
 
+_LRU_YEAR = 128
+
 type Day0Based = int
 type Day1Based = int
 
 
-@lru_cache
+@lru_cache(_LRU_YEAR)
 def format_year(year: int) -> str:
     if 0 <= year <= 9999:
         return f"{year:04d}"

@@ -68,7 +68,7 @@ from .functions import seq_startswith, seq_endswith, eq_slots, hash_slots, repr_
 #  q-component = pchar *( pchar / "/" / "?" )
 #  f-component = fragment
 # fragment = *( pchar / "/" / "?" )
-
+_LRU_CASE_NORMALIZE = 256
 
 CHARS_TSPECIALS = R"()<>@,;:\"/[]?="
 UNRESERVED = r"[0-9A-Za-z.~_-]"
@@ -142,7 +142,7 @@ def case_normalize_iter(
             yield c.casefold() if casefold else c
 
 
-@lru_cache(maxsize=256)
+@lru_cache(_LRU_CASE_NORMALIZE)
 def case_normalize(
     source: str,
     /,

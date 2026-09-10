@@ -45,10 +45,10 @@ from ..util.parse import (
 type ChannelOrder = Literal["ARGB", "RGB", "RGBA"]
 
 # How many results to cache
-_LRU_STRINGS = 256
-
+_LRU_STRINGS = 128
+_LRU_PARSE = 64
 # The typical case involves 8 bits per channel
-_LRU_BPC = 256
+_LRU_BPC = 128
 
 _0_4 = frac(4, 10)
 
@@ -577,7 +577,7 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
         # Since we have provided a custom __int__, we need to override the __bool__
         return True
 
-    @lru_cache(maxsize=_LRU_STRINGS)
+    @lru_cache(_LRU_STRINGS)
     def __str__(self) -> str:
         """Return the `#rrggbb` or `#rrggbbaa` hexadecimal string of the color with prefix "#".
 
@@ -588,7 +588,7 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
             return self.to_hex_rrggbb()
         return self.to_hex_rrggbbaa()
 
-    @lru_cache(maxsize=_LRU_STRINGS)
+    @lru_cache(_LRU_STRINGS)
     def __format__(self, format_spec: str) -> str:
         """Returns a formatted string.
 
@@ -997,6 +997,7 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
     def parse(cls, source: str, /, allow_none: bool) -> Self | None: ...
 
     @classmethod
+    @lru_cache(_LRU_PARSE)
     def parse(cls, source: str, /, allow_none: bool = False) -> Self | None:
         """Parse a color string, in hexadecimal, SVG names, CSS functions and X11 name forms,
         in that order of preference. Accepts all inputs to the :code:`from_css` and :code:`from_x11_name` methods.

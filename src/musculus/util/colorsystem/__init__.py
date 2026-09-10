@@ -130,6 +130,7 @@ def _output(v):
         return tuple(map(frac_float, v))
     return (frac_float(v),)
 
+_LRU_CONVERSION_GRAPH = 128
 
 _matmap_fast = matrix_linear_map_3x3_fma
 _matmap_exact = matrix_linear_map_3x3
@@ -180,7 +181,7 @@ def _get_children(node, fast):
     return children
 
 
-@lru_cache
+@lru_cache(_LRU_CONVERSION_GRAPH)
 def conversion_graph(
     from_system: ColorSystem, to_system: ColorSystem, *, fast: bool = True
 ) -> Sequence[ColorSystem]:

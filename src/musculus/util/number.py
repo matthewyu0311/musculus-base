@@ -34,7 +34,7 @@ __all__ = [
 from enum import Enum
 from fractions import Fraction
 from functools import lru_cache, partial
-from math import ceil, degrees, floor, isnan, pi
+from math import degrees, floor, isnan, pi
 from numbers import Rational, Real
 from typing import Literal, Self, TypeAlias, cast
 from unicodedata import normalize
@@ -46,11 +46,11 @@ HALF_PI = pi / 2
 FracOrFloat: TypeAlias = int | float | Fraction
 FracOrInt: TypeAlias = Fraction | int
 
-_FRACTION_LRU_SIZE = 1024
+_LRU_FRACTIONS = 256
 _FRACTIONS = {}
 
 
-@lru_cache(maxsize=_FRACTION_LRU_SIZE)
+@lru_cache(_LRU_FRACTIONS)
 def _get_fraction(k):
     return Fraction(*k)
 
