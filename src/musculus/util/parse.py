@@ -1,33 +1,6 @@
 # SPDX-License-Identifier: MIT
 """Implements a number of common string-related operations and constants, excluding those defined in URI-related RFCs such as RFC3986."""
 
-__all__ = [
-    "Collated",
-    "CollatedName",
-    "CodePoint",
-    "NormalizationForm",
-    "MAX_UNICODE",
-    "MAX_ASCII",
-    "CSS_ARGUMENT_CHARS",
-    "ValidityError",
-    "WellFormednessError",
-    "CheckDigitError",
-    "make_wellformed",
-    "to_code_point",
-    "from_code_point",
-    "ascii_casefold",
-    "remove_ascii_spaces",
-    "pascal_case",
-    "screaming_snake_case",
-    "collate",
-    "collate_uax44_lm2",
-    "LooseMatchStrEnum",
-    "loose_match_boolean",
-    "Parseable",
-    "Mod10CheckDigit",
-    "Mod11CheckDigit",
-    "mod11_check_digit",
-]
 import string
 import sys
 import unicodedata

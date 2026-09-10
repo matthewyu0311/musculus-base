@@ -39,7 +39,15 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Never, NoReturn, Self, cast, final, overload
 from unicodedata import is_normalized
 
-EMPTY_MAPPING: Mapping[Any, Never] = MappingProxyType({})
+
+if sys.version_info >= (3,15,0):
+    EMPTY_MAPPING = frozendict()
+
+    freeze_dict = frozendict
+else:
+    EMPTY_MAPPING: Mapping[Any, Never] = MappingProxyType({})
+
+    freeze_dict = MappingProxyType
 EMPTY_FROZENSET: frozenset[Never] = frozenset({})
 
 
