@@ -80,12 +80,12 @@ _LRU_PARSE = 128
 
 
 class MediaType(Parseable):
-    __slots__ = ("top_level_type", "subtype", "_parameters")
+    __slots__ = ("top_level_type", "subtype", "parameters")
     __match_args__ = ("top_level_type", "subtype")
 
     top_level_type: MediaTopLevelType | str
     subtype: str
-    _parameters: dict[str, str]
+    parameters: frozendict[str, str]
 
     def __new__(cls, top_level_type: str, subtype: str, /, **params):
         top_level_type = make_wellformed(
@@ -145,7 +145,7 @@ class MediaType(Parseable):
 
     def _compare_key(self) -> tuple:
         output = [self.top_level_type, self.subtype]
-        for k, v in self._parameters.items():
+        for k, v in self.parameters.items():
             output.append(k)
             output.append(v)
         return tuple(output)
@@ -154,26 +154,22 @@ class MediaType(Parseable):
 
     def __repr__(self) -> str:
         s = [f"{self.top_level_type!r}", f"{self.subtype!r}"]
-        if self._parameters:
-            s.append(safe_splat(self._parameters))
+        if self.parameters:
+            s.append(safe_splat(self.parameters))
         return f"{self.__class__.__qualname__}({', '.join(s)})"
 
     def __str__(self) -> str:
         simple = f"{self.top_level_type}/{self.subtype}"
-        if not self._parameters:
+        if not self.parameters:
             return simple
         msg = Message(HTTP_POLICY)
         msg.set_type(simple)
-        for k, v in self._parameters.items():
+        for k, v in self.parameters.items():
             msg.set_param(k, v)
         return msg["content-type"]
 
     def __getitem__(self, key) -> str:
-        return self._parameters[key]
-
-    @property
-    def parameters(self) -> Mapping[str, str]:
-        return copy(self._parameters)
+        return self.parameters[key]
 
     @classmethod
     @lru_cache(_LRU_PARSE)

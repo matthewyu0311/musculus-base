@@ -20,7 +20,6 @@ from ..util.colorsystem import (
 )
 from ..util.functions import (
     SlottedImmutableMixin,
-    freeze_dict,
     new_with_fields,
     runtime_final,
 )
@@ -1027,7 +1026,7 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
         except ValueError:
             return cls.from_x11_name(s)
 
-    SVG_NAMES: Final[Mapping[str, int]] = freeze_dict(
+    SVG_NAMES: Final[Mapping[str, int]] = frozendict(
         {
             "transparent": 0x00000000,
             "aliceblue": 0xF0F8FFFF,
@@ -1180,11 +1179,11 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
             "yellowgreen": 0x9ACD32FF,
         }
     )
-    SVG_NAMES_INVERSE: Final[Mapping[int, str]] = freeze_dict(
+    SVG_NAMES_INVERSE: Final[Mapping[int, str]] = frozendict(
         {_v: _k for _k, _v in SVG_NAMES.items()}
     )
 
-    X11_NAMES: Final[Mapping[str, int]] = freeze_dict(
+    X11_NAMES: Final[Mapping[str, int]] = frozendict(
         {
             "snow": 0xFFFAFAFF,
             "ghost white": 0xF8F8FFFF,
@@ -1970,9 +1969,9 @@ class RGBAColor(SlottedImmutableMixin, Parseable):
             "teal": 0x008080FF,
         }
     )
-    X11_NAMES_INVERSE: Final[Mapping[int, str]] = freeze_dict(
+    X11_NAMES_INVERSE: Final[Mapping[int, str]] = frozendict(
         {_v: _k for _k, _v in X11_NAMES.items()}
     )
-    X11_NAMES_COLLATED: Final[Mapping[str, int]] = freeze_dict(
+    X11_NAMES_COLLATED: Final[Mapping[str, int]] = frozendict(
         {remove_ascii_spaces(_k).casefold(): _v for _k, _v in X11_NAMES.items()}
     )

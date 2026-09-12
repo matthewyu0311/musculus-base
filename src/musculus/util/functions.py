@@ -28,26 +28,16 @@ __all__ = [
     "SlottedImmutableMixin",
     "LookaheadIterator",
 ]
-
 import operator
 import sys
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator, Mapping, Reversible, Sequence
 from itertools import chain
 from keyword import iskeyword
-from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Never, NoReturn, Self, cast, final, overload
 from unicodedata import is_normalized
 
-if sys.version_info >= (3, 15, 0):
-    EMPTY_MAPPING = frozendict()
-
-    freeze_dict = frozendict
-
-else:
-    EMPTY_MAPPING: Mapping[Any, Never] = MappingProxyType({})
-
-    freeze_dict = MappingProxyType
+EMPTY_MAPPING: Mapping[Any, Never] = frozendict()
 EMPTY_FROZENSET: frozenset[Never] = frozenset({})
 EMPTY_ITERATOR: Iterator[Never] = iter(())
 
