@@ -2436,6 +2436,7 @@ standard_illuminants_d50_d55_d65_d75_spd = make_linear_interpolator(
     STANDARD_ILLUMINANTS_D50_D55_D65_D75_SPD, integer_interval=1
 )
 
+
 def standard_illuminant_d_xy(cct: float) -> tuple[float, float]:
     """Calculates the xy chromaticity coordiates for the Standard Illuminant D given the correlated color temperature (CCT).
     CCT must be the actual (not nominal) value between 4000K and 25000K.

@@ -710,7 +710,6 @@ class EDTFDateTime(_EDTFComparable, Parseable):
     second: float
     __match_args__ = ("year", "month", "day", "hour", "minute", "second")
 
-
     __eq__ = eq_slots_noshort
     __hash__ = hash_slots
 

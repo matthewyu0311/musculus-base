@@ -149,11 +149,17 @@ def make_wellformed(
     if no_multilines and len(s.splitlines()) > 1:
         raise WellFormednessError(f"{name} contains multiple lines: {s!r}")
     if is_alnum is not None and s.isalnum() != is_alnum:
-        raise WellFormednessError(f"{name} is {"not " if is_alnum else ""}alphanumeric: {s!r}")
+        raise WellFormednessError(
+            f"{name} is {"not " if is_alnum else ""}alphanumeric: {s!r}"
+        )
     if is_alpha is not None and s.isalpha() != is_alpha:
-        raise WellFormednessError(f"{name} is {"not " if is_alpha else ""}alphabetic: {s!r}")
+        raise WellFormednessError(
+            f"{name} is {"not " if is_alpha else ""}alphabetic: {s!r}"
+        )
     if is_digit is not None and s.isdigit() != is_digit:
-        raise WellFormednessError(f"{name} is {"not " if is_digit else ""}digits: {s!r}")
+        raise WellFormednessError(
+            f"{name} is {"not " if is_digit else ""}digits: {s!r}"
+        )
     if startswith is None:
         pass
     elif isinstance(startswith, str):
@@ -196,17 +202,17 @@ def make_wellformed(
 def to_code_point(cp: str | int, /) -> CodePoint:
     if isinstance(cp, str):
         return CodePoint(ord(cp))
-    if not 0 <= cp <= MAX_UNICODE:
-        raise UnicodeError(f"Code point ouside of 0..U+10FFFF: {cp}")
-    return CodePoint(cp)
+    if 0 <= cp <= MAX_UNICODE:
+        return CodePoint(cp)
+    raise UnicodeError(f"Code point ouside of 0..U+10FFFF: U+{cp:04X}")
 
 
 def from_code_point(cp: str | int, /) -> str:
     if isinstance(cp, int):
         return chr(cp)
-    if len(cp) != 1:
-        raise ValueError(f"String of length != 1")
-    return cp
+    if len(cp) == 1:
+        return cp
+    raise ValueError(f"String of length != 1: {cp!r}")
 
 
 def ascii_casefold(s: str, /, upper: bool) -> str:

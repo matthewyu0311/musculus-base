@@ -621,12 +621,12 @@ class TestRGBAColor(unittest.TestCase):
                         self.assertTupleEqual(p, (r * a, g * a, b * a, a))
                         o = color.opacify()
                         self.assertEqual(o.alpha, RGBAColor.MAX_CHANNEL_VALUE)
-        
+
     def test_interpolation(self):
         # NOTE: For other interpolation methods, use the visual test.
         color1 = RGBAColor("#ABCDEF00")
         color2 = RGBAColor("#808080FF")
         interpolated = color1.interpolate(0.25, color2, interpolation=ColorSystem.SRGB)
         self.assertEqual(interpolated, RGBAColor("#80808040"))
-        # XXX: There is no guarantee in the CSS algorithm that the result of 
+        # XXX: There is no guarantee in the CSS algorithm that the result of
         # interpolation with proportion 0 or 1 be equal to either endpoint.

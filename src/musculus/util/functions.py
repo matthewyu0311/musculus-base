@@ -32,43 +32,31 @@ __all__ = [
 import operator
 import sys
 from collections import deque
-from keyword import iskeyword
 from collections.abc import Callable, Iterable, Iterator, Mapping, Reversible, Sequence
 from itertools import chain
+from keyword import iskeyword
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Never, NoReturn, Self, cast, final, overload
 from unicodedata import is_normalized
 
-
-if sys.version_info >= (3,15,0):
+if sys.version_info >= (3, 15, 0):
     EMPTY_MAPPING = frozendict()
 
     freeze_dict = frozendict
+
 else:
     EMPTY_MAPPING: Mapping[Any, Never] = MappingProxyType({})
 
     freeze_dict = MappingProxyType
 EMPTY_FROZENSET: frozenset[Never] = frozenset({})
-
-
-class _EmptyIterator(Iterator[Never]):
-    __slots__ = ()
-
-    def __iter__(self):
-        return self
-
-    def __next__(self) -> NoReturn:
-        raise StopIteration
-
-
-EMPTY_ITERATOR = _EmptyIterator()
+EMPTY_ITERATOR: Iterator[Never] = iter(())
 
 type Itemizable[K, V] = Iterable[tuple[K, V]] | Mapping[K, V]
 
 
 def itemize[K, V](m: Itemizable[K, V], /) -> Iterable[tuple[K, V]]:
     if isinstance(m, Mapping):
-        return m.items()    # type: ignore
+        return m.items()  # type: ignore
     return m
 
 
@@ -170,6 +158,7 @@ def eq_slots_noshort(self, other) -> bool:
 
 eq_slots_noshort.__name__ = "__eq__"
 
+
 def repr_slots(self) -> str:
     o = [
         f"{k}={getattr(self, k)!r}"
@@ -186,6 +175,7 @@ def repr_slots_positional(self) -> str:
 
 
 repr_slots.__name__ = repr_slots_positional.__name__ = "__repr__"
+
 
 def compare_with[K, T, T2 = Never](
     op: Callable[[K, K], bool],
@@ -322,7 +312,6 @@ class SlottedImmutableMixin:
     __slots__ = ()
 
     __lt__, __le__, __eq__, __ge__, __gt__, __hash__ = make_compare_fns(slots_tuple)
-
 
 
 class LookaheadIterator[V](Iterator[V]):

@@ -1,13 +1,13 @@
 """This module contains several functions for operating witht file paths."""
 
-from copy import copy
-from email.policy import HTTP as HTTP_POLICY
-from email.message import Message
-from enum import StrEnum
 import os
+from collections.abc import Callable, Iterable, Mapping
+from copy import copy
+from email.message import Message
+from email.policy import HTTP as HTTP_POLICY
+from enum import StrEnum
 from functools import lru_cache, partial
 from mimetypes import MimeTypes, guess_file_type, guess_type
-from collections.abc import Callable, Iterable, Mapping
 from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from typing import ClassVar, Self
 from urllib.parse import SplitResult
@@ -170,7 +170,7 @@ class MediaType(Parseable):
 
     def __getitem__(self, key) -> str:
         return self._parameters[key]
-    
+
     @property
     def parameters(self) -> Mapping[str, str]:
         return copy(self._parameters)

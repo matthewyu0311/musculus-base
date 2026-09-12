@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from typing import ClassVar, Literal, Self, cast
 from urllib.parse import SplitResult
 
+from ..util.uri import PathResolver
 from .functions import (
     SlottedImmutableMixin,
     make_compare_fns,
@@ -19,7 +20,6 @@ from .parse import (
     Parseable,
     ValidityError,
 )
-from ..util.uri import PathResolver
 
 
 class StandardIdentifier(Parseable):
@@ -129,8 +129,6 @@ class ResolverURIMixin:
 
     @abstractmethod
     def to_resolver_uri(self) -> SplitResult: ...
-
-
 
 
 class PathResolverURIMixin(ResolverURIMixin):

@@ -11,8 +11,8 @@ from ..util.parse import (
     CheckDigitError,
     Mod10CheckDigit,
     WellFormednessError,
+    ean13_check_digit,
     remove_ascii_spaces,
-    ean13_check_digit
 )
 from ..util.standard import NumericStandardIdentifier
 
@@ -54,7 +54,7 @@ class EAN13Mixin:
 @immutable
 class EAN13Code(EAN13Mixin, NumericStandardIdentifier):
     __slots__ = ()
-    
+
     EAN13_RANGES: ClassVar[Sequence[range]] = (range(0, MAX_EAN13 + 1),)
 
     def __new__(cls, number: int, /) -> Self:

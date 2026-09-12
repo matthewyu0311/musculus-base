@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 
 """All test cases are taken from RFC 8141 examples."""
+
 import itertools
 import unittest
 

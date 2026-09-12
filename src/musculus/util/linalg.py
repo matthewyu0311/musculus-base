@@ -302,7 +302,9 @@ def matrix_binary(
     )
 
 
-matrix_sub = partial(matrix_binary, cast(Callable[[FracOrFloat, FracOrFloat], FracOrFloat], operator.sub))
+matrix_sub = partial(
+    matrix_binary, cast(Callable[[FracOrFloat, FracOrFloat], FracOrFloat], operator.sub)
+)
 
 
 def matrix_scalar_multiply(matrix: AnyMatrix, scalar: FracOrFloat, /, *, mutable=False):

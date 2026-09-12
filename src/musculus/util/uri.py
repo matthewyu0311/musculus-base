@@ -29,7 +29,7 @@ __all__ = [
     "dissect_uri",
     "recompose_uri",
     "remove_trailing_slash",
-    "PathResolver"
+    "PathResolver",
 ]
 
 import re
@@ -38,14 +38,14 @@ from collections.abc import Iterable, Sequence
 from functools import lru_cache
 from ipaddress import IPv4Address, IPv6Address
 from string import ascii_letters, digits, hexdigits
-from typing import TypedDict, Self
-from urllib.parse import SplitResult, urlsplit, quote, unquote
+from typing import Self, TypedDict
+from urllib.parse import SplitResult, quote, unquote, urlsplit
 
+from .functions import eq_slots, hash_slots, repr_slots, seq_endswith, seq_startswith
 from .parse import (
     ValidityError,
     WellFormednessError,
 )
-from .functions import seq_startswith, seq_endswith, eq_slots, hash_slots, repr_slots
 
 # Productions from RFC 3986 and RFC 8141
 # ALPHANUM =  ALPHA / DIGIT
@@ -438,6 +438,7 @@ def remove_trailing_slash(path: Sequence[str], /) -> Sequence[str]:
         output.append(p)
     output.reverse()
     return output
+
 
 # Unlike other classes, this is mutable
 class PathResolver:

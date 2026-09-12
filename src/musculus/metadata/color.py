@@ -20,9 +20,9 @@ from ..util.colorsystem import (
 )
 from ..util.functions import (
     SlottedImmutableMixin,
+    freeze_dict,
     new_with_fields,
     runtime_final,
-    freeze_dict,
 )
 from ..util.number import (
     FracOrFloat,

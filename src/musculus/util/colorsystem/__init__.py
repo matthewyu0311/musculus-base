@@ -103,22 +103,22 @@ from ..number import (
     frac_float,
 )
 from .data import (
-    StandardIlluminant,
-    STANDARD_ILLUMINANTS_XYZ,
+    A98_LINEAR_TO_XYZ_D65_MATRIX,
+    BRADFORD_MATRIX,
+    DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX,
     LINEAR_TO_XYZ_D65_MATRIX,
     OKLAB_TO_LMS_CBRT_MATRIX,
-    XYZ_D65_TO_LMS_MATRIX,
-    DISPLAY_P3_LINEAR_TO_XYZ_D65_MATRIX,
-    XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX,
-    A98_LINEAR_TO_XYZ_D65_MATRIX,
-    XYZ_D65_TO_REC2020_LINEAR_MATRIX,
-    BRADFORD_MATRIX,
+    STANDARD_ILLUMINANTS_XYZ,
     VON_KRIES_MATRIX,
+    XYZ_D50_TO_PROPHOTO_RGB_LINEAR_MATRIX,
+    XYZ_D65_TO_LMS_MATRIX,
+    XYZ_D65_TO_REC2020_LINEAR_MATRIX,
+    StandardIlluminant,
 )
 
 try:
     # XXX It is pointless to use lazy import:
-    # 1. We may need it forr pre-generating the fast matrices 
+    # 1. We may need it forr pre-generating the fast matrices
     # 2. If we have no numpy installed, we don't repeatedly retry importing it every time
     import numpy as np  # type: ignore
 except ImportError:
@@ -129,6 +129,7 @@ def _output(v):
     if isinstance(v, Iterable):
         return tuple(map(frac_float, v))
     return (frac_float(v),)
+
 
 _LRU_CONVERSION_GRAPH = 128
 
@@ -576,7 +577,7 @@ def wavelength_to_rgb(wavelength: FracOrFloat, gamma: float = 0.8) -> Tuple3:
     - Within the linear region of increasing wavelength (440 to 700 nm),
       the colors have monotonically decreasing hue, saturations = 1, lightness = 0.5, value = 1
     - No guarantee can be made; things can look quite "wrong".
-    - If a scientific way of converting color values from and to wavelengths is desired, 
+    - If a scientific way of converting color values from and to wavelengths is desired,
       the CIE data in the accompanying data module shall be used.
     """
     # Accept and return float because our process is in general inexact (due to gamma)
@@ -635,7 +636,7 @@ def rgb_to_wavelength(values: Tuple3, *, gamma: float = 0.8) -> float:
     - Red colors (640 to 700 nm) and "infra-red" colors (>700 nm) may be mapped to 700 nm.
     - Non-saturated colors will be mapped to a color of the same hue.
     - No guarantee can be made; things can look quite "wrong".
-    - If a scientific way of converting color values from and to wavelengths is desired, 
+    - If a scientific way of converting color values from and to wavelengths is desired,
       the CIE data in the accompanying data module shall be used.
     """
     # Accept and return float because our process is in general inexact (due to gamma)
@@ -969,6 +970,7 @@ def register_scalar(from_system, to_scalar, forward, inverse):
         scalar_to_system,
     )
 
+
 # Linear transformations
 register_conversion(
     ColorSystem.XYZ_D50,
@@ -1167,7 +1169,12 @@ def css_gamut_map(
 ) -> tuple[FracOrFloat, ...]:
     return _output(
         _css_gamut_map_impl(
-            origin_system, values, jnd=jnd, epsilon=epsilon, min_l_is_black=min_l_is_black, max_l_is_white=max_l_is_white
+            origin_system,
+            values,
+            jnd=jnd,
+            epsilon=epsilon,
+            min_l_is_black=min_l_is_black,
+            max_l_is_white=max_l_is_white,
         )
     )
 
@@ -1185,7 +1192,12 @@ def convert_into_gamut(
     color = _convert_impl(from_system, to_system, values)[to_system]
     return _output(
         _css_gamut_map_impl(
-            to_system, color, jnd=jnd, epsilon=epsilon, min_l_is_black=min_l_is_black, max_l_is_white=max_l_is_white
+            to_system,
+            color,
+            jnd=jnd,
+            epsilon=epsilon,
+            min_l_is_black=min_l_is_black,
+            max_l_is_white=max_l_is_white,
         )
     )
 

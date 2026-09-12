@@ -207,9 +207,9 @@ class TestEDTF(unittest.TestCase):
         self.assertNotEqual(year_2025, year_2026)
         self.assertGreaterEqual(year_2026, year_2025)
         self.assertGreater(year_2026, year_2025)
-        
+
         self.assertLess(ym_2025_04, year_2026)
         self.assertIn(ym_2025_04, year_2025)
         self.assertLessEqual(ym_2025_04, year_2025)
-        
+
         self.assertIn(ymd_2025_04_07, ym_2025_04)

@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 class TestUtilFunctions(unittest.TestCase):
     """Only features whose regressions during refactors aren't directly visible are tested here.
     These features include finality, freezing and thread safety."""
+
     @classmethod
     def setUpClass(cls):
         global runtime_final, immutable, new_with_fields

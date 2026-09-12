@@ -7,14 +7,14 @@ class TestParse(unittest.TestCase):
         global ascii_casefold, make_wellformed, screaming_snake_case, pascal_case, collate
         global LooseMatchStrEnum, loose_match_boolean, mod10_check_digit
         from musculus.util.parse import (
+            LooseMatchStrEnum,
             ascii_casefold,
-            make_wellformed,
-            screaming_snake_case,
-            pascal_case,
             collate,
             loose_match_boolean,
-            LooseMatchStrEnum,
+            make_wellformed,
             mod10_check_digit,
+            pascal_case,
+            screaming_snake_case,
         )
 
     def test_ascii_casefold(self):

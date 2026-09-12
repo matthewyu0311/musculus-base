@@ -158,3 +158,6 @@ test = ["jupyter", "ipywidgets"]
 # If there are data files included in your packages that need to be
 # installed, specify them here.
 # package-data = {"sample" = ["*.dat"]}
+
+[tool.isort]
+profile = "black"
