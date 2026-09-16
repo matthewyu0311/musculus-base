@@ -1,10 +1,5 @@
-# SPDX-License-Identifier: MIT
-# See LICENSE, COPYING-W3C, COPYING-RGB for additional notes.
-
 """This module provides a class :class:`RGBAColor` which stores an RGBA value,
 and provides a number of auxiliary methods based on the sRGB color model."""
-
-__all__ = ["ChannelOrder", "RGBAColor"]
 
 from collections.abc import Iterable, Mapping
 from fractions import Fraction

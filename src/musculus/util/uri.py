@@ -1,37 +1,3 @@
-# SPDX-License-Identifier: MIT
-"""This module provides supporting utility for URI processing that are of use to other modules.
-The functionality is based on RFC 3986.
-This is not intended to be a general-purpose URI library.
-Packages such as data-url, urlstd and uts46 are much more suitable for general URI processing.
-"""
-
-# We don't put this module in musculus.metadata
-# as we aren't giving URIs their own type (we use SplitResult for that)
-
-__all__ = [
-    "CHARS_TSPECIALS",
-    "UNRESERVED",
-    "SET_UNRESERVED",
-    "SUB_DELIMS",
-    "SET_SUB_DELIMS",
-    "SET_PCHARS",
-    "PCT_ENCODED",
-    "PCHAR",
-    "CHARS_PCHARS",
-    "R_COMPONENT",
-    "Q_COMPONENT",
-    "F_COMPONENT",
-    "URI_SCHEME_PATTERN",
-    "DEFAULT_PORTS",
-    "case_normalize_iter",
-    "case_normalize",
-    "DissectDict",
-    "dissect_uri",
-    "recompose_uri",
-    "remove_trailing_slash",
-    "PathResolver",
-]
-
 import re
 from collections import deque
 from collections.abc import Iterable, Sequence

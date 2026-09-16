@@ -1,10 +1,3 @@
-# SPDX-License-Identifier: MIT
-__all__ = [
-    "StandardIdentifier",
-    "NumericStandardIdentifier",
-    "ResolverURIMixin",
-    "PathResolverURIMixin",
-]
 from abc import abstractmethod
 from collections.abc import Sequence
 from typing import ClassVar, Literal, Self, cast

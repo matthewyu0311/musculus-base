@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: MIT
 
 import unittest
 from urllib.parse import urlsplit

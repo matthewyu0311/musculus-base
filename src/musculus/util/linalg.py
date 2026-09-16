@@ -1,77 +1,8 @@
-__all__ = [
-    "Tuple1",
-    "Tuple3",
-    "Tuple4",
-    "MatrixRow_N",
-    "MatrixRow_1",
-    "MatrixRow_2",
-    "MatrixRow_3",
-    "Matrix_M",
-    "Matrix_Mx1",
-    "Matrix_1xN",
-    "Matrix_2xN",
-    "Matrix_3xN",
-    "Matrix_1x2",
-    "Matrix_1x3",
-    "Matrix_2x1",
-    "Matrix_2x2",
-    "Matrix_2x3",
-    "Matrix_3x1",
-    "Matrix_3x2",
-    "Matrix_3x3",
-    "MutableMatrix",
-    "AnyMatrix",
-    "matrix_size",
-    "matrix_copy",
-    "matrix_from",
-    "matrix_fill",
-    "matrix_values",
-    "matrix_column",
-    "matrix_column_values",
-    "matrix_column_vector",
-    "matrix_row_vector",
-    "MATRIX_IDENTITY_2x2",
-    "MATRIX_IDENTITY_3x3",
-    "matrix_identity",
-    "matrix_transpose",
-    "matrix_aggregate",
-    "matrix_add",
-    "matrix_unary",
-    "matrix_unary_inplace",
-    "matrix_neg",
-    "matrix_binary",
-    "matrix_sub",
-    "matrix_scalar_multiply",
-    "matrix_linear_map_3x3",
-    "matrix_linear_map_3x3_fma",
-    "first_of",
-    "max_of",
-    "matrix_reduced_row_echelon_det",
-    "matrix_augment",
-    "matrix_split",
-    "matrix_inverse_det",
-    "matrix_inverse",
-    "matrix_determinant",
-    "matrix_multiply",
-    "matrix_dot_product",
-    "matrix_cross_product",
-    "vector_op",
-    "vector_add",
-    "vector_scalar_mul",
-    "vector_neg",
-    "vector_sub",
-    "vector_length_sq",
-    "vector_length",
-    "vector_cosine",
-    "vector_dot_product",
-    "vector_cross_product",
-]
-
 import operator
 from collections.abc import Callable, Iterable, MutableSequence, Sequence
 from functools import partial
-from itertools import repeat
-from math import fma, sqrt
+from itertools import batched, chain, product, repeat, starmap
+from math import fma, sqrt, sumprod
 from typing import Literal, cast, overload
 
 from .number import FracOrFloat, frac
@@ -221,15 +152,21 @@ def matrix_identity(m: int, *, mutable: bool = False) -> AnyMatrix:
     return fn(fn(1 if j == i else 0 for j in range(m)) for i in range(m))
 
 
-def matrix_transpose(matrix: AnyMatrix, /) -> MutableMatrix:
-    m, n = matrix_size(matrix)
-    # O(n)
-    output = matrix_fill(n, m, mutable=True)
-    # O(m*n)
-    for i in range(m):
-        for j in range(n):
-            output[j][i] = matrix[i][j]
-    return output
+def matrix_reshape(matrix: Matrix_M, columns: int) -> Matrix_M:
+    "Reshape a 2-D matrix to have a given number of columns."
+    # reshape([(0, 1), (2, 3), (4, 5)], 3) →  (0, 1, 2), (3, 4, 5)
+    return tuple(batched(chain.from_iterable(matrix), columns, strict=True))
+
+def matrix_transpose(matrix: AnyMatrix) -> Matrix_M:
+    "Swap the rows and columns of a 2-D matrix."
+    # transpose([(1, 2, 3), (11, 22, 33)]) → (1, 11) (2, 22) (3, 33)
+    return tuple(zip(*matrix, strict=True))
+
+def matrix_multiply(m1: AnyMatrix, m2: AnyMatrix) -> Matrix_M:
+    "Multiply two matrices."
+    # matmul([(7, 5), (3, 5)], [(2, 5), (7, 9)]) → (49, 80), (41, 60)
+    n = len(m2[0])
+    return tuple(batched(starmap(sumprod, product(m1, matrix_transpose(m2))), n))
 
 
 def matrix_aggregate(
@@ -526,30 +463,6 @@ def matrix_determinant(matrix: AnyMatrix) -> FracOrFloat:
         return matrix_reduced_row_echelon_det(matrix)[1]
 
 
-@overload
-def matrix_multiply(
-    matrix1: AnyMatrix, matrix2: AnyMatrix, *, mutable: Literal[False] = False
-) -> Matrix_M: ...
-
-
-@overload
-def matrix_multiply(
-    matrix1: AnyMatrix, matrix2: AnyMatrix, *, mutable: Literal[True]
-) -> MutableMatrix: ...
-
-
-def matrix_multiply(
-    matrix1: AnyMatrix, matrix2: AnyMatrix, *, mutable=False
-) -> Matrix_M | MutableMatrix:
-    fn = list if mutable else tuple
-    m, n1 = matrix_size(matrix1)
-    m2, p = matrix_size(matrix2)
-    if n1 != m2:
-        raise ValueError(f"Cannot multiply {m} x {n1} matrix with {m2} x {p} matrix")
-    return fn(
-        fn(sum(matrix1[i][k] * matrix2[k][j] for k in range(n1)) for j in range(p))
-        for i in range(m)
-    )
 
 
 def matrix_dot_product(matrix1: Matrix_Mx1, matrix2: Matrix_Mx1) -> FracOrFloat:

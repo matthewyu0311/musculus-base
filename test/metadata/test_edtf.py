@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: MIT
 
 import datetime as dt
 import unittest

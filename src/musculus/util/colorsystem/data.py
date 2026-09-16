@@ -9,8 +9,11 @@ from itertools import chain, pairwise
 from math import exp, nan
 from typing import cast
 
+from ...util.functions import make_all, mark_imports
 from ..linalg import Matrix_3x3
 from ..number import FracOrFloat, frac, frac_int
+
+mark_imports(globals())
 
 type WavelengthTable = Mapping[float, tuple[float, ...]]
 type Row3 = tuple[float, float, float]
@@ -3069,3 +3072,5 @@ def spectral_locus_intersection(
     raise ValueError(
         "No intersection found, the white point is possibly not inside the spectral locus"
     )
+
+make_all(globals())

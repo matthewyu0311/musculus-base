@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: MIT
 """Implements a number of common string-related operations and constants, excluding those defined in URI-related RFCs such as RFC3986."""
 
 import string
@@ -6,7 +5,7 @@ import sys
 import unicodedata
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection, Iterable
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 from string import ascii_letters, digits
 from typing import ClassVar, Literal, NewType, Self, cast
 
@@ -261,7 +260,6 @@ def collate(prop: str, /) -> Collated:
         )
     )
 
-
 def collate_uax44_lm2(name: str, /) -> CollatedName:
     output = []
     name = f" {name} "
@@ -286,7 +284,7 @@ def collate_uax44_lm2(name: str, /) -> CollatedName:
     return CollatedName(n)
 
 
-def _remove_is_prefix(collated: Collated) -> Collated:
+def _remove_is_prefix(collated: str) -> str:
     # UAX44-LM3: remove the "is" prefix
     if collated.startswith("is") and len(collated) > 2:
         return Collated(collated[2:])
@@ -294,7 +292,12 @@ def _remove_is_prefix(collated: Collated) -> Collated:
 
 
 class LooseMatchStrEnum(StrEnum):
-    __collated__: ClassVar[bool] = False
+    __loose_match_collated__: ClassVar[bool] = False
+    __loose_match_default_value__: ClassVar[Self | None] = None
+
+    @classmethod
+    def set_loose_match_default(cls, default: Self | None):
+        cls.__loose_match_default_value__ = default
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -303,53 +306,105 @@ class LooseMatchStrEnum(StrEnum):
 
     @classmethod
     def _precollate(cls):
-        if cls.__collated__:
+        if cls.__loose_match_collated__:
             return
         existing = dict(cls.__members__)
         for k, v in existing.items():
             kc = collate(k)
+            try:
+                v._add_alias_(kc.upper())  # type: ignore
+            except ValueError:
+                pass  # Already assigned
+            no_prefix = _remove_is_prefix(kc.upper())
+            try:
+                v._add_alias_(no_prefix)  # type: ignore
+            except ValueError:
+                    pass  # No-prefix form has already been assigned
+            vv = v.value
+            vc = collate(vv)
+            try:
+                v._add_value_alias_(vc.upper())  # type: ignore
+            except ValueError:
+                pass
+            vnp = _remove_is_prefix(vc)
+            try:
+                v._add_value_alias_(vnp.upper())  # type: ignore
+            except ValueError:
+                pass
+        cls.__loose_match_collated__ = True
+
+    @classmethod
+    def _missing_(cls, value: str | None, /) -> Self:
+        if not value:
+            if cls.__loose_match_default_value__ is not None:
+                return cls.__loose_match_default_value__
+            raise ValueError("No default value specified for loose-matching")
+        try:
+            return cls.__members__[value]
+        except KeyError:
+            collated = _remove_is_prefix(collate(value)).upper()
+            try:
+                return cls.__members__[collated]
+            except KeyError:
+                raise ValueError(value)
+
+class LooseMatchIntEnum(IntEnum):
+    __loose_match_collated__: ClassVar[bool] = False
+    __loose_match_default_value__: ClassVar[Self | None] = None
+
+    @classmethod
+    def set_loose_match_default(cls, default: Self | None):
+        cls.__loose_match_default_value__ = default
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls._precollate()
+
+    @classmethod
+    def _precollate(cls):
+        if cls.__loose_match_collated__:
+            return
+        existing = dict(cls.__members__)
+        for k, v in existing.items():
+            kc = collate(k).upper()
             if kc not in existing:
                 try:
                     v._add_alias_(kc)  # type: ignore
-                except NameError:
+                except ValueError:
                     pass  # Already assigned
             no_prefix = _remove_is_prefix(kc)
             if no_prefix != kc and no_prefix not in existing:
                 try:
                     v._add_alias_(no_prefix)  # type: ignore
-                except NameError:
+                except ValueError:
                     pass  # No-prefix form has already been assigned
-            vv = v.value
-            vc = collate(vv)
-            if vc != vv:
-                try:
-                    v._add_value_alias_(vc)  # type: ignore
-                except ValueError:
-                    pass
-            vnp = _remove_is_prefix(vc)
-            if vnp != vc:
-                try:
-                    v._add_value_alias_(vnp)  # type: ignore
-                except ValueError:
-                    pass
-        cls.__collated__ = True
+        cls.__loose_match_collated__ = True
 
     @classmethod
-    def _missing_(cls, value: str, /) -> Self:
-        try:
-            return cls.__members__[value]
-        except KeyError:
-            pass
-
-        collated = _remove_is_prefix(collate(value))
-        if collated != value:
-            try:
-                return cls.__members__[collated]
-            except KeyError:
+    def _missing_(cls, value: str | int | None, /) -> Self:
+        match value:
+            case "" | None:
+                if cls.__loose_match_default_value__ is not None:
+                    return cls.__loose_match_default_value__
+            case str(s):
                 try:
-                    return cls(collated)
-                except ValueError as ve:
-                    raise ve
+                    i = int(value)
+                except ValueError:
+                    try:
+                        return cls.__members__[s]
+                    except KeyError:
+                        collated = _remove_is_prefix(collate(s)).upper()
+                        try:
+                            return cls.__members__[collated]
+                        except KeyError:
+                            raise ValueError(value)
+                else:
+                    return cls(i)
+            case int():
+                pass
+            case _:
+                raise TypeError
         raise ValueError(value)
 
 

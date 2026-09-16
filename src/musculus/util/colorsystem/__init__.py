@@ -1,65 +1,3 @@
-__all__ = [
-    "ColorSystem",
-    "conversion_graph",
-    "register_conversion",
-    "convert",
-    "deltaE2000",
-    "deltaEOK",
-    "ps_greyscale",
-    "luminance_bt601",
-    "rgb_to_hsl",
-    "rgb_to_hsv",
-    "rgb_to_hwb",
-    "hsl_to_rgb",
-    "hsv_to_rgb",
-    "hwb_to_rgb",
-    "rgb_to_cmyk_naive",
-    "cmyk_naive_to_rgb",
-    "wavelength_to_rgb",
-    "rgb_to_wavelength",
-    "srgb_transfer_lin",
-    "srgb_transfer_gam",
-    "ChromaticAdaptation",
-    "chromatic_adaptation_matrix",
-    "xyz_d50_to_lab",
-    "lab_to_xyz_d50",
-    "lms_to_lms_cbrt",
-    "lms_cbrt_to_lms",
-    "lab_to_lch",
-    "lch_to_lab",
-    "prophoto_rgb_gam",
-    "prophoto_rgb_lin",
-    "a98_transfer_lin",
-    "a98_transfer_gam",
-    "rec2020_transfer_lin",
-    "rec2020_transfer_gam",
-    "build_linear_matrices",
-    "register_scalar",
-    "COLOR_SYSTEMS_UNLIMITED_GAMUT",
-    "css_gamut_map",
-    "convert_into_gamut",
-    "ComponentSpec",
-    "RGB_SPEC",
-    "XYZ_SPEC",
-    "HSL_SPEC",
-    "HWB_SPEC",
-    "LAB_SPEC",
-    "LCH_SPEC",
-    "COMPONENTS_SPEC",
-    "HSL_EPSILON",
-    "HWB_EPSILON",
-    "LCH_EPSILON",
-    "OKLCH_EPSILON",
-    "PolarInterpolationSystem",
-    "POLAR_INTERPOLATION_SYSTEMS",
-    "InterpolationColorSystem",
-    "INTERPOLATION_COLOR_SYSTEMS",
-    "HueInterpolationMethod",
-    "interpolate",
-    "relative_luminance",
-    "wcag_2_1_contrast_ratio",
-]
-
 from collections import deque
 from collections.abc import Callable, Iterable, Sequence
 from enum import StrEnum
@@ -760,7 +698,7 @@ def chromatic_adaptation_matrix(
         (0, 0, frac(beta_2, beta_1)),
     )
     intermediate = _matmul_exact(matrix, ma)
-    result = _matmul_exact(ma_inv, intermediate, mutable=False)
+    result = _matmul_exact(ma_inv, intermediate)
     return cast(Matrix_3x3, result)
 
 

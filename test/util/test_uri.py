@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: MIT
 
 import unittest
 from ipaddress import IPv4Address, IPv6Address

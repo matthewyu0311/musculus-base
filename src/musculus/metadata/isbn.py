@@ -1,5 +1,3 @@
-__all__ = ["MIN_ISBN", "MAX_ISBN", "ISBN"]
-
 from collections.abc import Sequence
 from typing import Final, Self
 
