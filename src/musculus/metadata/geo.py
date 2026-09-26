@@ -78,50 +78,6 @@ _aabbbb = (
 )
 
 
-# Equations from
-# Sandwell (2002) Reference Earth Model - WGS84
-# https://topex.ucsd.edu/geodynamics/14gravity1_2.pdf
-def geographic_to_geocentric(geographic_latitude_deg: float) -> float:
-    # By convention, geographic latitude is in degrees, geocentric is in radians
-    if -90 < geographic_latitude_deg < 90:
-        return atan((WGS84_AXIS_RATIO**2) * tan(radians(geographic_latitude_deg)))
-    elif geographic_latitude_deg == 90:
-        return HALF_PI
-    elif geographic_latitude_deg == -90:
-        return -HALF_PI
-    raise ValueError(
-        f"Geographic latitude must be between -90 and 90 degrees inclusive, got {geographic_latitude_deg!r}"
-    )
-
-
-def geocentric_to_geographic(geocentric_latitude: float) -> float:
-    # By convention, geographic latitude is in degrees, geocentric is in radians
-    if -HALF_PI < geocentric_latitude < HALF_PI:
-        return degrees(atan(tan(geocentric_latitude) / (WGS84_AXIS_RATIO**2)))
-    elif geocentric_latitude == HALF_PI:
-        return 90
-    elif geocentric_latitude == -HALF_PI:
-        return -90
-    raise ValueError(
-        f"Geocentric latitude must be between -pi/2 and pi/2 inclusive, got {geocentric_latitude!r}"
-    )
-
-
-def radius_of_spheroid(geocentric_latitude: float) -> float:
-    if -HALF_PI < geocentric_latitude < HALF_PI:
-        return 1 / sqrt(
-            (cos(geocentric_latitude) / WGS84_SEMI_MAJOR_AXIS) ** 2
-            + (sin(geocentric_latitude) / WGS84_SEMI_MINOR_AXIS) ** 2
-        )
-        # or
-        # return WGS84_SEMI_MAJOR_AXIS*(1-WGS84_FLATTENING*(sin(geocentric_latitude)**2))
-    elif geocentric_latitude in (HALF_PI, -HALF_PI):
-        return WGS84_SEMI_MINOR_AXIS
-    raise ValueError(
-        f"Geocentric latitude must be between -pi/2 and pi/2 inclusive, got {geocentric_latitude!r}"
-    )
-
-
 # The standard ever only supports one projection system, but here we go...
 class Projection(StrEnum):
     WGS84 = "wgs84"
